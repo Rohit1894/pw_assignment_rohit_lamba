@@ -1,0 +1,1336 @@
+{
+  "text": " Hello students. So, the question reads as find the distance between the points a 1, 2 and 4, 6 options are 3 units, 4 units, 5 units and 6 units. We do that distance between 2 points is given as under root of x 2 minus x 1 whole square plus y 2 minus y 1 whole square. If there is z coordinate, we will also write plus z 2 minus z 1 whole square. So, doing this calculation, we will get x 2 as 4 and we will write as 4 minus 1 whole square plus y 2 is 6. So, we will write as 6 minus 2 whole square. So, d comes out to be under root of 3 square plus 4 square which will be equal to under root of 9 plus 16 which comes out to be under root 25. So, the answer will be d is equal to 5 units. So, option number c will be the answer. Thank you.",
+  "segments": [
+    {
+      "id": 0,
+      "seek": 0,
+      "start": 0.0,
+      "end": 7.34,
+      "text": " Hello students. So, the question reads as find the distance between the points a 1, 2 and",
+      "tokens": [
+        50364,
+        2425,
+        1731,
+        13,
+        407,
+        11,
+        264,
+        1168,
+        15700,
+        382,
+        915,
+        264,
+        4560,
+        1296,
+        264,
+        2793,
+        257,
+        502,
+        11,
+        568,
+        293,
+        50738
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.21656969431284312,
+      "compression_ratio": 1.6047904191616766,
+      "no_speech_prob": 0.04979409649968147,
+      "words": [
+        {
+          "word": " Hello",
+          "start": 0.0,
+          "end": 1.1,
+          "probability": 0.7671093940734863
+        },
+        {
+          "word": " students.",
+          "start": 1.1,
+          "end": 1.54,
+          "probability": 0.8980751037597656
+        },
+        {
+          "word": " So,",
+          "start": 2.06,
+          "end": 2.14,
+          "probability": 0.9893263578414917
+        },
+        {
+          "word": " the",
+          "start": 2.16,
+          "end": 2.26,
+          "probability": 0.9927384257316589
+        },
+        {
+          "word": " question",
+          "start": 2.26,
+          "end": 2.64,
+          "probability": 0.9926861524581909
+        },
+        {
+          "word": " reads",
+          "start": 2.64,
+          "end": 2.92,
+          "probability": 0.9208828210830688
+        },
+        {
+          "word": " as",
+          "start": 2.92,
+          "end": 3.38,
+          "probability": 0.9690060615539551
+        },
+        {
+          "word": " find",
+          "start": 3.38,
+          "end": 3.88,
+          "probability": 0.7781038880348206
+        },
+        {
+          "word": " the",
+          "start": 3.88,
+          "end": 4.14,
+          "probability": 0.9909459352493286
+        },
+        {
+          "word": " distance",
+          "start": 4.14,
+          "end": 4.42,
+          "probability": 0.9972366094589233
+        },
+        {
+          "word": " between",
+          "start": 4.42,
+          "end": 4.86,
+          "probability": 0.9988396763801575
+        },
+        {
+          "word": " the",
+          "start": 4.86,
+          "end": 5.12,
+          "probability": 0.9929364323616028
+        },
+        {
+          "word": " points",
+          "start": 5.12,
+          "end": 5.4,
+          "probability": 0.9691529273986816
+        },
+        {
+          "word": " a",
+          "start": 5.4,
+          "end": 5.78,
+          "probability": 0.47139790654182434
+        },
+        {
+          "word": " 1,",
+          "start": 5.78,
+          "end": 6.32,
+          "probability": 0.7075245976448059
+        },
+        {
+          "word": " 2",
+          "start": 6.54,
+          "end": 6.96,
+          "probability": 0.8392800092697144
+        },
+        {
+          "word": " and",
+          "start": 6.96,
+          "end": 7.34,
+          "probability": 0.9539479613304138
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "seek": 0,
+      "start": 7.34,
+      "end": 15.72,
+      "text": " 4, 6 options are 3 units, 4 units, 5 units and 6 units. We do that distance between 2 points",
+      "tokens": [
+        50738,
+        1017,
+        11,
+        1386,
+        3956,
+        366,
+        805,
+        6815,
+        11,
+        1017,
+        6815,
+        11,
+        1025,
+        6815,
+        293,
+        1386,
+        6815,
+        13,
+        492,
+        360,
+        300,
+        4560,
+        1296,
+        568,
+        2793,
+        51160
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.21656969431284312,
+      "compression_ratio": 1.6047904191616766,
+      "no_speech_prob": 0.04979409649968147,
+      "words": [
+        {
+          "word": " 4,",
+          "start": 7.34,
+          "end": 7.7,
+          "probability": 0.9869175553321838
+        },
+        {
+          "word": " 6",
+          "start": 7.88,
+          "end": 8.32,
+          "probability": 0.9800078868865967
+        },
+        {
+          "word": " options",
+          "start": 8.32,
+          "end": 8.86,
+          "probability": 0.9385658502578735
+        },
+        {
+          "word": " are",
+          "start": 8.86,
+          "end": 9.18,
+          "probability": 0.9864892959594727
+        },
+        {
+          "word": " 3",
+          "start": 9.18,
+          "end": 9.62,
+          "probability": 0.8559484481811523
+        },
+        {
+          "word": " units,",
+          "start": 9.62,
+          "end": 9.94,
+          "probability": 0.9948941469192505
+        },
+        {
+          "word": " 4",
+          "start": 10.1,
+          "end": 10.36,
+          "probability": 0.9961536526679993
+        },
+        {
+          "word": " units,",
+          "start": 10.36,
+          "end": 10.72,
+          "probability": 0.9961031675338745
+        },
+        {
+          "word": " 5",
+          "start": 10.92,
+          "end": 11.12,
+          "probability": 0.9895955920219421
+        },
+        {
+          "word": " units",
+          "start": 11.12,
+          "end": 11.48,
+          "probability": 0.9963817596435547
+        },
+        {
+          "word": " and",
+          "start": 11.48,
+          "end": 11.88,
+          "probability": 0.8913359045982361
+        },
+        {
+          "word": " 6",
+          "start": 11.88,
+          "end": 12.34,
+          "probability": 0.9960302710533142
+        },
+        {
+          "word": " units.",
+          "start": 12.34,
+          "end": 12.64,
+          "probability": 0.9918403625488281
+        },
+        {
+          "word": " We",
+          "start": 13.1,
+          "end": 13.6,
+          "probability": 0.9839073419570923
+        },
+        {
+          "word": " do",
+          "start": 13.6,
+          "end": 13.8,
+          "probability": 0.7365760803222656
+        },
+        {
+          "word": " that",
+          "start": 13.8,
+          "end": 14.04,
+          "probability": 0.9827556014060974
+        },
+        {
+          "word": " distance",
+          "start": 14.04,
+          "end": 14.52,
+          "probability": 0.9807444214820862
+        },
+        {
+          "word": " between",
+          "start": 14.52,
+          "end": 14.94,
+          "probability": 0.9981887936592102
+        },
+        {
+          "word": " 2",
+          "start": 14.94,
+          "end": 15.32,
+          "probability": 0.812412679195404
+        },
+        {
+          "word": " points",
+          "start": 15.32,
+          "end": 15.72,
+          "probability": 0.9920492768287659
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "seek": 0,
+      "start": 15.72,
+      "end": 24.54,
+      "text": " is given as under root of x 2 minus x 1 whole square plus y 2 minus y 1 whole square.",
+      "tokens": [
+        51160,
+        307,
+        2212,
+        382,
+        833,
+        5593,
+        295,
+        2031,
+        568,
+        3175,
+        2031,
+        502,
+        1379,
+        3732,
+        1804,
+        288,
+        568,
+        3175,
+        288,
+        502,
+        1379,
+        3732,
+        13,
+        51608
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.21656969431284312,
+      "compression_ratio": 1.6047904191616766,
+      "no_speech_prob": 0.04979409649968147,
+      "words": [
+        {
+          "word": " is",
+          "start": 15.72,
+          "end": 16.08,
+          "probability": 0.9964008331298828
+        },
+        {
+          "word": " given",
+          "start": 16.08,
+          "end": 16.34,
+          "probability": 0.9980402588844299
+        },
+        {
+          "word": " as",
+          "start": 16.34,
+          "end": 16.78,
+          "probability": 0.9963937401771545
+        },
+        {
+          "word": " under",
+          "start": 16.78,
+          "end": 17.12,
+          "probability": 0.7666292786598206
+        },
+        {
+          "word": " root",
+          "start": 17.12,
+          "end": 17.34,
+          "probability": 0.6596683263778687
+        },
+        {
+          "word": " of",
+          "start": 17.34,
+          "end": 17.7,
+          "probability": 0.9905977845191956
+        },
+        {
+          "word": " x",
+          "start": 17.7,
+          "end": 18.38,
+          "probability": 0.7429773211479187
+        },
+        {
+          "word": " 2",
+          "start": 18.38,
+          "end": 18.62,
+          "probability": 0.8018984198570251
+        },
+        {
+          "word": " minus",
+          "start": 18.62,
+          "end": 19.08,
+          "probability": 0.9168580770492554
+        },
+        {
+          "word": " x",
+          "start": 19.08,
+          "end": 19.42,
+          "probability": 0.9923564195632935
+        },
+        {
+          "word": " 1",
+          "start": 19.42,
+          "end": 19.78,
+          "probability": 0.9841892123222351
+        },
+        {
+          "word": " whole",
+          "start": 19.78,
+          "end": 20.3,
+          "probability": 0.9798017740249634
+        },
+        {
+          "word": " square",
+          "start": 20.3,
+          "end": 20.6,
+          "probability": 0.9750579595565796
+        },
+        {
+          "word": " plus",
+          "start": 20.6,
+          "end": 21.36,
+          "probability": 0.9520843625068665
+        },
+        {
+          "word": " y",
+          "start": 21.36,
+          "end": 22.08,
+          "probability": 0.9740536212921143
+        },
+        {
+          "word": " 2",
+          "start": 22.08,
+          "end": 22.34,
+          "probability": 0.990032970905304
+        },
+        {
+          "word": " minus",
+          "start": 22.34,
+          "end": 22.8,
+          "probability": 0.9963061809539795
+        },
+        {
+          "word": " y",
+          "start": 22.8,
+          "end": 23.2,
+          "probability": 0.9963817596435547
+        },
+        {
+          "word": " 1",
+          "start": 23.2,
+          "end": 23.54,
+          "probability": 0.9896718263626099
+        },
+        {
+          "word": " whole",
+          "start": 23.54,
+          "end": 24.12,
+          "probability": 0.9941285848617554
+        },
+        {
+          "word": " square.",
+          "start": 24.12,
+          "end": 24.54,
+          "probability": 0.9924377799034119
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "seek": 2454,
+      "start": 24.54,
+      "end": 30.96,
+      "text": " If there is z coordinate, we will also write plus z 2 minus z 1 whole square. So, doing this",
+      "tokens": [
+        50376,
+        759,
+        456,
+        307,
+        710,
+        15670,
+        11,
+        321,
+        486,
+        611,
+        2464,
+        1804,
+        710,
+        568,
+        3175,
+        710,
+        502,
+        1379,
+        3732,
+        13,
+        407,
+        11,
+        884,
+        341,
+        50684
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.12629934549331664,
+      "compression_ratio": 1.7515923566878981,
+      "no_speech_prob": 0.0564584918320179,
+      "words": [
+        {
+          "word": " If",
+          "start": 24.54,
+          "end": 25.36,
+          "probability": 0.15070542693138123
+        },
+        {
+          "word": " there",
+          "start": 25.36,
+          "end": 25.56,
+          "probability": 0.9643039107322693
+        },
+        {
+          "word": " is",
+          "start": 25.56,
+          "end": 25.72,
+          "probability": 0.9858556389808655
+        },
+        {
+          "word": " z",
+          "start": 25.72,
+          "end": 25.9,
+          "probability": 0.5772417187690735
+        },
+        {
+          "word": " coordinate,",
+          "start": 25.9,
+          "end": 26.34,
+          "probability": 0.7958531379699707
+        },
+        {
+          "word": " we",
+          "start": 26.54,
+          "end": 26.64,
+          "probability": 0.7205401062965393
+        },
+        {
+          "word": " will",
+          "start": 26.64,
+          "end": 26.78,
+          "probability": 0.938576877117157
+        },
+        {
+          "word": " also",
+          "start": 26.78,
+          "end": 27.04,
+          "probability": 0.9162655472755432
+        },
+        {
+          "word": " write",
+          "start": 27.04,
+          "end": 27.22,
+          "probability": 0.9944438338279724
+        },
+        {
+          "word": " plus",
+          "start": 27.22,
+          "end": 27.54,
+          "probability": 0.7345550060272217
+        },
+        {
+          "word": " z",
+          "start": 27.54,
+          "end": 27.78,
+          "probability": 0.9514036774635315
+        },
+        {
+          "word": " 2",
+          "start": 27.78,
+          "end": 28.02,
+          "probability": 0.36045852303504944
+        },
+        {
+          "word": " minus",
+          "start": 28.02,
+          "end": 28.34,
+          "probability": 0.9221355319023132
+        },
+        {
+          "word": " z",
+          "start": 28.34,
+          "end": 28.58,
+          "probability": 0.9911544322967529
+        },
+        {
+          "word": " 1",
+          "start": 28.58,
+          "end": 28.84,
+          "probability": 0.9647400975227356
+        },
+        {
+          "word": " whole",
+          "start": 28.84,
+          "end": 29.16,
+          "probability": 0.9839238524436951
+        },
+        {
+          "word": " square.",
+          "start": 29.16,
+          "end": 29.46,
+          "probability": 0.9835538864135742
+        },
+        {
+          "word": " So,",
+          "start": 30.18,
+          "end": 30.28,
+          "probability": 0.9395682215690613
+        },
+        {
+          "word": " doing",
+          "start": 30.28,
+          "end": 30.64,
+          "probability": 0.9681163430213928
+        },
+        {
+          "word": " this",
+          "start": 30.64,
+          "end": 30.96,
+          "probability": 0.9957069754600525
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "seek": 2454,
+      "start": 30.96,
+      "end": 41.26,
+      "text": " calculation, we will get x 2 as 4 and we will write as 4 minus 1 whole square plus y 2 is 6.",
+      "tokens": [
+        50684,
+        17108,
+        11,
+        321,
+        486,
+        483,
+        2031,
+        568,
+        382,
+        1017,
+        293,
+        321,
+        486,
+        2464,
+        382,
+        1017,
+        3175,
+        502,
+        1379,
+        3732,
+        1804,
+        288,
+        568,
+        307,
+        1386,
+        13,
+        51208
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.12629934549331664,
+      "compression_ratio": 1.7515923566878981,
+      "no_speech_prob": 0.0564584918320179,
+      "words": [
+        {
+          "word": " calculation,",
+          "start": 30.96,
+          "end": 31.66,
+          "probability": 0.9977411031723022
+        },
+        {
+          "word": " we",
+          "start": 31.92,
+          "end": 32.08,
+          "probability": 0.9958133101463318
+        },
+        {
+          "word": " will",
+          "start": 32.08,
+          "end": 32.32,
+          "probability": 0.9980377554893494
+        },
+        {
+          "word": " get",
+          "start": 32.32,
+          "end": 32.54,
+          "probability": 0.993416428565979
+        },
+        {
+          "word": " x",
+          "start": 32.54,
+          "end": 33.08,
+          "probability": 0.9202060699462891
+        },
+        {
+          "word": " 2",
+          "start": 33.08,
+          "end": 33.3,
+          "probability": 0.9768027067184448
+        },
+        {
+          "word": " as",
+          "start": 33.3,
+          "end": 33.7,
+          "probability": 0.9672987461090088
+        },
+        {
+          "word": " 4",
+          "start": 33.7,
+          "end": 34.52,
+          "probability": 0.9860391616821289
+        },
+        {
+          "word": " and",
+          "start": 34.52,
+          "end": 35.32,
+          "probability": 0.8423064947128296
+        },
+        {
+          "word": " we",
+          "start": 35.32,
+          "end": 35.64,
+          "probability": 0.9930738210678101
+        },
+        {
+          "word": " will",
+          "start": 35.64,
+          "end": 35.8,
+          "probability": 0.9934163093566895
+        },
+        {
+          "word": " write",
+          "start": 35.8,
+          "end": 35.96,
+          "probability": 0.9972314238548279
+        },
+        {
+          "word": " as",
+          "start": 35.96,
+          "end": 36.3,
+          "probability": 0.992994487285614
+        },
+        {
+          "word": " 4",
+          "start": 36.3,
+          "end": 36.78,
+          "probability": 0.9830963611602783
+        },
+        {
+          "word": " minus",
+          "start": 36.78,
+          "end": 37.28,
+          "probability": 0.9839398860931396
+        },
+        {
+          "word": " 1",
+          "start": 37.28,
+          "end": 37.88,
+          "probability": 0.9927005171775818
+        },
+        {
+          "word": " whole",
+          "start": 37.88,
+          "end": 38.48,
+          "probability": 0.9950706958770752
+        },
+        {
+          "word": " square",
+          "start": 38.48,
+          "end": 38.92,
+          "probability": 0.9967684745788574
+        },
+        {
+          "word": " plus",
+          "start": 38.92,
+          "end": 39.7,
+          "probability": 0.9544580578804016
+        },
+        {
+          "word": " y",
+          "start": 39.7,
+          "end": 40.38,
+          "probability": 0.9197830557823181
+        },
+        {
+          "word": " 2",
+          "start": 40.38,
+          "end": 40.64,
+          "probability": 0.9889087080955505
+        },
+        {
+          "word": " is",
+          "start": 40.64,
+          "end": 40.84,
+          "probability": 0.9388138651847839
+        },
+        {
+          "word": " 6.",
+          "start": 40.84,
+          "end": 41.26,
+          "probability": 0.9930865168571472
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "seek": 2454,
+      "start": 41.64,
+      "end": 49.28,
+      "text": " So, we will write as 6 minus 2 whole square. So, d comes out to be under root of 3 square",
+      "tokens": [
+        51208,
+        407,
+        11,
+        321,
+        486,
+        2464,
+        382,
+        1386,
+        3175,
+        568,
+        1379,
+        3732,
+        13,
+        407,
+        11,
+        274,
+        1487,
+        484,
+        281,
+        312,
+        833,
+        5593,
+        295,
+        805,
+        3732,
+        51616
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.12629934549331664,
+      "compression_ratio": 1.7515923566878981,
+      "no_speech_prob": 0.0564584918320179,
+      "words": [
+        {
+          "word": " So,",
+          "start": 41.64,
+          "end": 41.72,
+          "probability": 0.9780313372612
+        },
+        {
+          "word": " we",
+          "start": 41.8,
+          "end": 41.86,
+          "probability": 0.9944451451301575
+        },
+        {
+          "word": " will",
+          "start": 41.86,
+          "end": 41.98,
+          "probability": 0.9858115911483765
+        },
+        {
+          "word": " write",
+          "start": 41.98,
+          "end": 42.16,
+          "probability": 0.997065007686615
+        },
+        {
+          "word": " as",
+          "start": 42.16,
+          "end": 42.4,
+          "probability": 0.9918640851974487
+        },
+        {
+          "word": " 6",
+          "start": 42.4,
+          "end": 42.76,
+          "probability": 0.9916086792945862
+        },
+        {
+          "word": " minus",
+          "start": 42.76,
+          "end": 43.32,
+          "probability": 0.9889495372772217
+        },
+        {
+          "word": " 2",
+          "start": 43.32,
+          "end": 43.76,
+          "probability": 0.9884825348854065
+        },
+        {
+          "word": " whole",
+          "start": 43.76,
+          "end": 44.32,
+          "probability": 0.9947748184204102
+        },
+        {
+          "word": " square.",
+          "start": 44.32,
+          "end": 44.62,
+          "probability": 0.9948409199714661
+        },
+        {
+          "word": " So,",
+          "start": 45.06,
+          "end": 45.18,
+          "probability": 0.9794706702232361
+        },
+        {
+          "word": " d",
+          "start": 45.36,
+          "end": 45.42,
+          "probability": 0.8673418164253235
+        },
+        {
+          "word": " comes",
+          "start": 45.42,
+          "end": 45.76,
+          "probability": 0.9335799813270569
+        },
+        {
+          "word": " out",
+          "start": 45.76,
+          "end": 46.12,
+          "probability": 0.9909857511520386
+        },
+        {
+          "word": " to",
+          "start": 46.12,
+          "end": 46.3,
+          "probability": 0.9838311672210693
+        },
+        {
+          "word": " be",
+          "start": 46.3,
+          "end": 46.52,
+          "probability": 0.9592407941818237
+        },
+        {
+          "word": " under",
+          "start": 46.52,
+          "end": 46.98,
+          "probability": 0.9817748069763184
+        },
+        {
+          "word": " root",
+          "start": 46.98,
+          "end": 47.2,
+          "probability": 0.9695490002632141
+        },
+        {
+          "word": " of",
+          "start": 47.2,
+          "end": 47.62,
+          "probability": 0.9916324019432068
+        },
+        {
+          "word": " 3",
+          "start": 47.62,
+          "end": 48.78,
+          "probability": 0.8973941206932068
+        },
+        {
+          "word": " square",
+          "start": 48.78,
+          "end": 49.28,
+          "probability": 0.9873407483100891
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "seek": 4928,
+      "start": 49.28,
+      "end": 58.6,
+      "text": " plus 4 square which will be equal to under root of 9 plus 16 which comes out to be under root",
+      "tokens": [
+        50380,
+        1804,
+        1017,
+        3732,
+        597,
+        486,
+        312,
+        2681,
+        281,
+        833,
+        5593,
+        295,
+        1722,
+        1804,
+        3165,
+        597,
+        1487,
+        484,
+        281,
+        312,
+        833,
+        5593,
+        50828
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.18510665212358748,
+      "compression_ratio": 1.515625,
+      "no_speech_prob": 0.003664098447188735,
+      "words": [
+        {
+          "word": " plus",
+          "start": 49.28,
+          "end": 49.88,
+          "probability": 0.31416982412338257
+        },
+        {
+          "word": " 4",
+          "start": 49.88,
+          "end": 50.7,
+          "probability": 0.8714108467102051
+        },
+        {
+          "word": " square",
+          "start": 50.7,
+          "end": 51.34,
+          "probability": 0.7505846619606018
+        },
+        {
+          "word": " which",
+          "start": 51.34,
+          "end": 52.28,
+          "probability": 0.7165324091911316
+        },
+        {
+          "word": " will",
+          "start": 52.28,
+          "end": 52.48,
+          "probability": 0.9921149611473083
+        },
+        {
+          "word": " be",
+          "start": 52.48,
+          "end": 52.66,
+          "probability": 0.9642980098724365
+        },
+        {
+          "word": " equal",
+          "start": 52.66,
+          "end": 52.98,
+          "probability": 0.9908477067947388
+        },
+        {
+          "word": " to",
+          "start": 52.98,
+          "end": 53.26,
+          "probability": 0.9964132905006409
+        },
+        {
+          "word": " under",
+          "start": 53.26,
+          "end": 53.5,
+          "probability": 0.9488175511360168
+        },
+        {
+          "word": " root",
+          "start": 53.5,
+          "end": 53.76,
+          "probability": 0.9786681532859802
+        },
+        {
+          "word": " of",
+          "start": 53.76,
+          "end": 54.04,
+          "probability": 0.989831805229187
+        },
+        {
+          "word": " 9",
+          "start": 54.04,
+          "end": 54.94,
+          "probability": 0.97622150182724
+        },
+        {
+          "word": " plus",
+          "start": 54.94,
+          "end": 55.62,
+          "probability": 0.9449105858802795
+        },
+        {
+          "word": " 16",
+          "start": 55.62,
+          "end": 56.24,
+          "probability": 0.9957994818687439
+        },
+        {
+          "word": " which",
+          "start": 56.24,
+          "end": 57.0,
+          "probability": 0.8843957781791687
+        },
+        {
+          "word": " comes",
+          "start": 57.0,
+          "end": 57.3,
+          "probability": 0.983128547668457
+        },
+        {
+          "word": " out",
+          "start": 57.3,
+          "end": 57.6,
+          "probability": 0.9908456206321716
+        },
+        {
+          "word": " to",
+          "start": 57.6,
+          "end": 57.78,
+          "probability": 0.9458872675895691
+        },
+        {
+          "word": " be",
+          "start": 57.78,
+          "end": 57.94,
+          "probability": 0.9824371933937073
+        },
+        {
+          "word": " under",
+          "start": 57.94,
+          "end": 58.34,
+          "probability": 0.9981344938278198
+        },
+        {
+          "word": " root",
+          "start": 58.34,
+          "end": 58.6,
+          "probability": 0.9917542934417725
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "seek": 4928,
+      "start": 58.6,
+      "end": 68.18,
+      "text": " 25. So, the answer will be d is equal to 5 units. So, option number c will be the answer.",
+      "tokens": [
+        50828,
+        3552,
+        13,
+        407,
+        11,
+        264,
+        1867,
+        486,
+        312,
+        274,
+        307,
+        2681,
+        281,
+        1025,
+        6815,
+        13,
+        407,
+        11,
+        3614,
+        1230,
+        269,
+        486,
+        312,
+        264,
+        1867,
+        13,
+        51312
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.18510665212358748,
+      "compression_ratio": 1.515625,
+      "no_speech_prob": 0.003664098447188735,
+      "words": [
+        {
+          "word": " 25.",
+          "start": 58.6,
+          "end": 59.32,
+          "probability": 0.9192201495170593
+        },
+        {
+          "word": " So,",
+          "start": 60.08,
+          "end": 60.16,
+          "probability": 0.977937638759613
+        },
+        {
+          "word": " the",
+          "start": 60.24,
+          "end": 60.38,
+          "probability": 0.9912959337234497
+        },
+        {
+          "word": " answer",
+          "start": 60.38,
+          "end": 60.72,
+          "probability": 0.9952468276023865
+        },
+        {
+          "word": " will",
+          "start": 60.72,
+          "end": 60.96,
+          "probability": 0.991963267326355
+        },
+        {
+          "word": " be",
+          "start": 60.96,
+          "end": 61.16,
+          "probability": 0.9985942244529724
+        },
+        {
+          "word": " d",
+          "start": 61.16,
+          "end": 61.36,
+          "probability": 0.32451480627059937
+        },
+        {
+          "word": " is",
+          "start": 61.36,
+          "end": 61.68,
+          "probability": 0.9505758881568909
+        },
+        {
+          "word": " equal",
+          "start": 61.68,
+          "end": 62.04,
+          "probability": 0.9935420751571655
+        },
+        {
+          "word": " to",
+          "start": 62.04,
+          "end": 62.36,
+          "probability": 0.9954982995986938
+        },
+        {
+          "word": " 5",
+          "start": 62.36,
+          "end": 63.42,
+          "probability": 0.9779959917068481
+        },
+        {
+          "word": " units.",
+          "start": 63.42,
+          "end": 64.14,
+          "probability": 0.9833399057388306
+        },
+        {
+          "word": " So,",
+          "start": 64.74,
+          "end": 65.36,
+          "probability": 0.9157519340515137
+        },
+        {
+          "word": " option",
+          "start": 65.4,
+          "end": 65.74,
+          "probability": 0.9714165329933167
+        },
+        {
+          "word": " number",
+          "start": 65.74,
+          "end": 66.06,
+          "probability": 0.9970314502716064
+        },
+        {
+          "word": " c",
+          "start": 66.06,
+          "end": 66.62,
+          "probability": 0.5952696800231934
+        },
+        {
+          "word": " will",
+          "start": 66.62,
+          "end": 66.9,
+          "probability": 0.9975696206092834
+        },
+        {
+          "word": " be",
+          "start": 66.9,
+          "end": 67.12,
+          "probability": 0.9982271790504456
+        },
+        {
+          "word": " the",
+          "start": 67.12,
+          "end": 67.36,
+          "probability": 0.9945453405380249
+        },
+        {
+          "word": " answer.",
+          "start": 67.36,
+          "end": 68.18,
+          "probability": 0.9944287538528442
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "seek": 4928,
+      "start": 68.82,
+      "end": 69.8,
+      "text": " Thank you.",
+      "tokens": [
+        51356,
+        1044,
+        291,
+        13,
+        51680
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.18510665212358748,
+      "compression_ratio": 1.515625,
+      "no_speech_prob": 0.003664098447188735,
+      "words": [
+        {
+          "word": " Thank",
+          "start": 68.82,
+          "end": 69.46,
+          "probability": 0.9893274307250977
+        },
+        {
+          "word": " you.",
+          "start": 69.46,
+          "end": 69.8,
+          "probability": 0.9854832887649536
+        }
+      ]
+    }
+  ],
+  "language": "en"
+}

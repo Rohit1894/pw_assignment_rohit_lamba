@@ -1,0 +1,37 @@
+[
+  {
+    "time": 0.0,
+    "action": "highlight_question",
+    "text": "Find Distance Between Two Points"
+  },
+  {
+    "time": 15.72,
+    "action": "write",
+    "text": "Step 1: Distance Formula\nd = √((x₂−x₁)² + (y₂−y₁)²)"
+  },
+  {
+    "time": 30.96,
+    "action": "write",
+    "text": "Step 2: Substitute Values\nd = √((4−1)² + (6−2)²)"
+  },
+  {
+    "time": 41.64,
+    "action": "write",
+    "text": "Step 3: Simplify\nd = √(3² + 4²)"
+  },
+  {
+    "time": 49.28,
+    "action": "write",
+    "text": "Step 4: Calculate\nd = √(9 + 16) = √25"
+  },
+  {
+    "time": 58.6,
+    "action": "write",
+    "text": "Step 5: Result\nd = 5 units"
+  },
+  {
+    "time": 60.6,
+    "action": "highlight_option",
+    "text": "Option C"
+  }
+]

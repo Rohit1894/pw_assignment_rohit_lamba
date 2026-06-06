@@ -1,0 +1,9 @@
+openai-whisper
+easyocr
+opencv-python
+moviepy
+Pillow
+google-genai
+numpy
+openpyxl
+pandas

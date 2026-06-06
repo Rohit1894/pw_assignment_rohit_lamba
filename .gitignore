@@ -1,0 +1,44 @@
+# Virtual Environment
+.venv/
+venv/
+env/
+ENV/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# IDE and Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# OS files
+.DS_Store
+.AppleDouble
+.LSOverride
+__MACOSX/
+
+# Logs
+*.log
+logs/
+
+# Temp and backup files
+*.tmp
+*.bak
+.ipynb_checkpoints/
+
+# Dependencies
+dist/
+build/
+*.egg-info/
+
+# Environment variables
+.env
+.env.local
