@@ -20,111 +20,14 @@ import os
 import sys
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
-from moviepy import VideoClip, AudioFileClip, vfx, CompositeAudioClip
+from moviepy import VideoClip, AudioFileClip, vfx
 import math
 import random
 import re
-import wave
-import struct
 
 # ── Colour palette ──────────────────────────────────────────────────────────
 PEN_COLOR = (0, 0, 0)                             # black pen style
 PEN_WIDTH = 3                                     # marker width
-
-
-# ── Whiteboard Marker Realism Helpers ─────────────────────────────────────────
-def generate_marker_scratch_audio(duration, output_path):
-    """Generate a realistic whiteboard marker writing scratch/squeak sound."""
-    sample_rate = 44100
-    num_samples = int(duration * sample_rate)
-    if num_samples <= 0:
-        return
-    
-    # Time array
-    t = np.linspace(0, duration, num_samples, endpoint=False)
-    
-    # 1. Base friction noise (friction of felt-tip on board)
-    raw_noise = np.random.normal(0, 0.12, num_samples)
-    
-    # Simple bandpass filtering in time-domain
-    filtered = raw_noise[2:] - raw_noise[:-2]
-    filtered = np.pad(filtered, (2, 0), mode='edge')
-    
-    # 2. Add marker squeaks (high-pitched resonance slips)
-    squeak_freq = 1450.0
-    fm = 100 * np.sin(2 * np.pi * 8 * t)
-    squeak_signal = np.sin(2 * np.pi * squeak_freq * t + fm)
-    
-    squeak_env = np.zeros(num_samples)
-    num_bursts = random.randint(1, 2)
-    for _ in range(num_bursts):
-        burst_start = random.uniform(0.15, max(0.2, duration - 0.4))
-        burst_len = random.uniform(0.08, 0.22)
-        burst_idx = (t >= burst_start) & (t <= burst_start + burst_len)
-        if np.any(burst_idx):
-            burst_t = t[burst_idx] - burst_start
-            squeak_env[burst_idx] = 0.02 * np.sin(np.pi * burst_t / burst_len)
-            
-    squeak = squeak_signal * squeak_env
-    
-    # Combine friction rubbing and squeaks
-    signal = filtered + squeak
-    
-    # 3. Overall stroke volume envelope (fade-in at start, fade-out at end)
-    overall_env = np.minimum(1.0, 15.0 * np.minimum(t, duration - t))
-    fluctuations = 1.0 + 0.15 * np.sin(2 * np.pi * 4 * t)
-    signal = signal * overall_env * fluctuations
-    
-    # Normalize and scale to 16-bit PCM range
-    max_val = np.max(np.abs(signal))
-    if max_val > 0:
-        signal = signal / max_val
-    signal = (signal * 12000).astype(np.int16)
-    
-    # Save to WAV file
-    with wave.open(output_path, 'wb') as wav_file:
-        wav_file.setnchannels(1) # mono
-        wav_file.setsampwidth(2) # 16-bit
-        wav_file.setframerate(sample_rate)
-        wav_file.writeframes(signal.tobytes())
-
-
-def _draw_marker_tip(draw, tx, ty):
-    """Draw a clean, realistic whiteboard marker tip writing at (tx, ty)."""
-    # Pen angle: tilted 45 degrees up-right. Direction vector from tip: (1, -1)
-    # Define points relative to tip (tx, ty)
-    # Felt tip (black):
-    tip_pts = [
-        (tx, ty),
-        (tx + 5, ty - 2),
-        (tx + 2, ty - 5)
-    ]
-    
-    # Pen collar (grey cylinder):
-    collar_pts = [
-        (tx + 5, ty - 2),
-        (tx + 12, ty - 9),
-        (tx + 9, ty - 12),
-        (tx + 2, ty - 5)
-    ]
-    
-    # Pen body (white/black barrel):
-    body_pts = [
-        (tx + 12, ty - 9),
-        (tx + 30, ty - 27),
-        (tx + 24, ty - 33),
-        (tx + 9, ty - 12)
-    ]
-    
-    # Draw felt tip
-    draw.polygon(tip_pts, fill=(20, 20, 20))
-    # Draw collar
-    draw.polygon(collar_pts, fill=(120, 120, 120))
-    # Draw body
-    draw.polygon(body_pts, fill=(215, 215, 215))
-    # Draw body outline
-    draw.line([(tx + 12, ty - 9), (tx + 30, ty - 27), (tx + 24, ty - 33), (tx + 9, ty - 12), (tx + 12, ty - 9)], fill=(130, 130, 130), width=1)
-
 
 
 # ── Font helper ─────────────────────────────────────────────────────────────
@@ -214,16 +117,7 @@ def _draw_handwritten_line(draw, x1, y1, x2, y2, width=PEN_WIDTH, color=PEN_COLO
         px += random.uniform(-0.6, 0.6)
         py += random.uniform(-0.6, 0.6)
         
-        # Pressure bleed at start, taper at end
-        u = i / steps
-        if u < 0.15:
-            scale = 1.0 + 0.3 * (1.0 - u / 0.15)
-        elif u > 0.8:
-            scale = 1.0 - 0.3 * ((u - 0.8) / 0.2)
-        else:
-            scale = 1.0
-            
-        r = (width * scale) / 2.0
+        r = width / 2
         draw.ellipse([px - r, py - r, px + r, py + r], fill=color)
 
 
@@ -305,21 +199,18 @@ def draw_custom_text(draw, x, y, text, font, color):
     for char in text:
         char_to_draw = char
         curr_font = font
-        
-        # Natural whiteboard writing upward baseline drift
-        y_drift = int((curr_x - x) * -0.04)
-        curr_y = y + y_drift
+        curr_y = y
         
         if char == '−': # Unicode minus
             char_to_draw = '-'
         elif '₀' <= char <= '₉':
             char_to_draw = str(ord(char) - 0x2080)
             curr_font = sub_font
-            curr_y += int(font.size * 0.25)
+            curr_y = y + int(font.size * 0.25)
         elif char in SUPERSCRIPTS_MAP:
             char_to_draw = SUPERSCRIPTS_MAP[char]
             curr_font = sub_font
-            curr_y -= int(font.size * 0.15)
+            curr_y = y - int(font.size * 0.15)
             
         draw.text((curr_x, curr_y), char_to_draw, fill=color, font=curr_font)
         curr_x += draw.textlength(char_to_draw, font=curr_font)
@@ -613,8 +504,6 @@ def _render_frame_at(t, background, schedule, fonts):
     
     draw = ImageDraw.Draw(frame, "RGBA")
     
-    active_tip = None
-    
     # Render all actions up to time t
     for action in schedule:
         start = action["write_start"]
@@ -629,33 +518,17 @@ def _render_frame_at(t, background, schedule, fonts):
         progress = 1.0 if t >= end else (t - start) / max(duration, 0.01)
         progress = max(0.0, min(1.0, progress))
         
-        # Apply velocity easing (cosine profile for smooth start/stop)
-        eased_progress = (1.0 - math.cos(progress * math.pi)) / 2.0
-        
         if action_type == "circle_existing":
             params = action.get("circle_params")
             if params:
                 cx, cy, r = params
-                _draw_progressive_circle(draw, cx, cy, r, eased_progress, PEN_WIDTH, PEN_COLOR)
-                
-                # Capture active tip coordinate
-                if t < end:
-                    angle = 2 * math.pi * eased_progress
-                    tx = cx + r * math.cos(angle)
-                    ty = cy + r * math.sin(angle)
-                    active_tip = (tx, ty)
+                _draw_progressive_circle(draw, cx, cy, r, progress, PEN_WIDTH, PEN_COLOR)
                 
         elif action_type == "underline_existing":
             params = action.get("underline_params")
             if params:
                 x1, y1, x2, y2 = params
-                _draw_progressive_underline(draw, x1, y1, x2, y2, eased_progress, PEN_WIDTH, PEN_COLOR)
-                
-                # Capture active tip coordinate
-                if t < end:
-                    tx = x1 + (x2 - x1) * eased_progress
-                    ty = y2
-                    active_tip = (tx, ty)
+                _draw_progressive_underline(draw, x1, y1, x2, y2, progress, PEN_WIDTH, PEN_COLOR)
                 
         elif action_type == "write_equation":
             text = action.get("text", "")
@@ -664,47 +537,23 @@ def _render_frame_at(t, background, schedule, fonts):
             # Math word-wise tokenized reveal
             tokens = split_into_math_tokens(text)
             n_tokens = len(tokens)
-            k = int(eased_progress * n_tokens)
+            k = int(progress * n_tokens)
             partial_text = "".join(tokens[:k])
             
             # Draw math equation with custom radical rendering to avoid missing glyph boxes
             draw_math_equation_with_radicals(draw, wx, wy, partial_text, font_body, PEN_COLOR)
             
-            # Capture active tip coordinate
-            if t < end:
-                drift_x = get_custom_text_width(draw, partial_text, font_body)
-                y_drift = int(drift_x * -0.04)
-                tx = wx + drift_x
-                ty = wy + y_drift + int(font_body.size * 0.7)
-                active_tip = (tx, ty)
-                
         elif action_type == "draw_arrow":
             params = action.get("arrow_params")
             if params:
                 x1, y1, x2, y2 = params
-                _draw_progressive_arrow(draw, x1, y1, x2, y2, eased_progress, PEN_WIDTH, PEN_COLOR)
-                
-                # Capture active tip coordinate
-                if t < end:
-                    tx = x1 + (x2 - x1) * eased_progress
-                    ty = y1 + (y2 - y1) * eased_progress
-                    active_tip = (tx, ty)
+                _draw_progressive_arrow(draw, x1, y1, x2, y2, progress, PEN_WIDTH, PEN_COLOR)
                 
         elif action_type == "tick_answer":
             params = action.get("tick_params")
             if params:
                 x1, y1, x2, y2 = params
-                _draw_progressive_diagonal_slash(draw, x1, y1, x2, y2, eased_progress, PEN_WIDTH, PEN_COLOR)
-                
-                # Capture active tip coordinate
-                if t < end:
-                    tx = x1 + (x2 - x1) * eased_progress
-                    ty = y1 + (y2 - y1) * eased_progress
-                    active_tip = (tx, ty)
-                    
-    # Overlay the active writing pen/marker tip
-    if active_tip:
-        _draw_marker_tip(draw, active_tip[0], active_tip[1])
+                _draw_progressive_diagonal_slash(draw, x1, y1, x2, y2, progress, PEN_WIDTH, PEN_COLOR)
                 
     return np.array(frame)
 
@@ -736,29 +585,6 @@ def render_video(image_path, annotations_path, audio_path, output_path,
 
     # Precompute layout coordinates and schedule
     schedule = _build_schedule(annotations, total_duration, enriched_ocr, option_positions)
-
-    # Generate procedural marker scratch audio clips
-    audio_clips = [audio]
-    temp_wav_files = []
-    
-    print("  Generating procedural whiteboard marker audio effects...")
-    for idx, action in enumerate(schedule):
-        action_type = action["action"]
-        if action_type in ["underline_existing", "circle_existing", "write_equation", "draw_arrow", "tick_answer"]:
-            dur = action["write_end"] - action["write_start"]
-            if dur > 0.05:
-                temp_wav = os.path.join("output", f"temp_scratch_{idx}.wav")
-                try:
-                    generate_marker_scratch_audio(dur, temp_wav)
-                    temp_wav_files.append(temp_wav)
-                    
-                    scratch_clip = AudioFileClip(temp_wav).with_start(action["write_start"])
-                    audio_clips.append(scratch_clip)
-                except Exception as e:
-                    print(f"  Warning: Failed to generate scratch audio for action {idx} ({e})")
-                    
-    # Mix all audio clips together
-    mixed_audio = CompositeAudioClip(audio_clips)
 
     print(f"  Rendering {total_duration:.1f}s video at 24 fps...")
     
@@ -793,7 +619,7 @@ def render_video(image_path, annotations_path, audio_path, output_path,
     ])
 
     # Combine with audio
-    video = video.with_audio(mixed_audio)
+    video = video.with_audio(audio)
 
     video.write_videofile(
         output_path,
@@ -802,30 +628,6 @@ def render_video(image_path, annotations_path, audio_path, output_path,
         audio_codec="aac",
         logger="bar",
     )
-    
-    # Close audio clips to release locks
-    for clip in audio_clips[1:]:
-        try:
-            clip.close()
-        except Exception:
-            pass
-    try:
-        mixed_audio.close()
-    except Exception:
-        pass
-    try:
-        audio.close()
-    except Exception:
-        pass
-        
-    # Clean up temporary WAV files
-    for temp_wav in temp_wav_files:
-        try:
-            if os.path.exists(temp_wav):
-                os.remove(temp_wav)
-        except Exception as e:
-            print(f"  Warning: Could not remove temporary audio file {temp_wav} ({e})")
-            
     print(f"  Video rendering complete! Saved to {output_path}")
 
 
