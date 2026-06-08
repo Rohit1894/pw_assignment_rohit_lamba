@@ -1,0 +1,2276 @@
+{
+  "text": " Hello everyone, so let's solve this problem. The displacement of a particle starting from rest at t equal to 0 is given by s is equal to 60 square minus t cube. The time in which the particle will obtain 0 velocity again. So we have to find the time at which the particle has the velocity equal to 0. So first we will find the function of the velocity that is velocity is given by derivative of the displacement function that is ds by dt. So from here the derivative of this function, this 60 square minus t cube that will be equal to 6 multiplied by the derivative of t square that will be 2t minus the derivative of t cube will be 3t square. So this is our velocity function that is a 12t minus 3t square and now we have to just put it equal to 0 according to the condition in the question. So after taking 3 common and t common we get 3t and here this we get s 4 minus t and this is equal to 0. So one value of time is t equal to 0 which was the initial condition of the question that starting from the rest and another value of time can be given by this factor. So we get this s t minus 4 equal to 0 or we can say t equal to 4. So 4 second is the time at which the particle again comes to rest. So answer for this question which will be option number b. Thank you. I hope you understand this solution.",
+  "segments": [
+    {
+      "id": 0,
+      "seek": 0,
+      "start": 0.9599999999999995,
+      "end": 3.68,
+      "text": " Hello everyone, so let's solve this problem.",
+      "tokens": [
+        50364,
+        2425,
+        1518,
+        11,
+        370,
+        718,
+        311,
+        5039,
+        341,
+        1154,
+        13,
+        50720
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.17793655395507812,
+      "compression_ratio": 1.6304347826086956,
+      "no_speech_prob": 0.20911017060279846,
+      "words": [
+        {
+          "word": " Hello",
+          "start": 0.9599999999999995,
+          "end": 1.6,
+          "probability": 0.6390600204467773
+        },
+        {
+          "word": " everyone,",
+          "start": 1.6,
+          "end": 1.9,
+          "probability": 0.857642412185669
+        },
+        {
+          "word": " so",
+          "start": 2.08,
+          "end": 2.18,
+          "probability": 0.9257598519325256
+        },
+        {
+          "word": " let's",
+          "start": 2.18,
+          "end": 2.66,
+          "probability": 0.9458617866039276
+        },
+        {
+          "word": " solve",
+          "start": 2.66,
+          "end": 2.82,
+          "probability": 0.9846414923667908
+        },
+        {
+          "word": " this",
+          "start": 2.82,
+          "end": 3.04,
+          "probability": 0.9941510558128357
+        },
+        {
+          "word": " problem.",
+          "start": 3.04,
+          "end": 3.68,
+          "probability": 0.9953965544700623
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "seek": 0,
+      "start": 7.12,
+      "end": 12.72,
+      "text": " The displacement of a particle starting from rest at t equal to 0 is given by s is equal",
+      "tokens": [
+        50720,
+        440,
+        21899,
+        295,
+        257,
+        12359,
+        2891,
+        490,
+        1472,
+        412,
+        256,
+        2681,
+        281,
+        1958,
+        307,
+        2212,
+        538,
+        262,
+        307,
+        2681,
+        51006
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.17793655395507812,
+      "compression_ratio": 1.6304347826086956,
+      "no_speech_prob": 0.20911017060279846,
+      "words": [
+        {
+          "word": " The",
+          "start": 6.819999999999999,
+          "end": 7.14,
+          "probability": 0.9414415955543518
+        },
+        {
+          "word": " displacement",
+          "start": 7.14,
+          "end": 7.58,
+          "probability": 0.9898315072059631
+        },
+        {
+          "word": " of",
+          "start": 7.58,
+          "end": 7.92,
+          "probability": 0.9964311122894287
+        },
+        {
+          "word": " a",
+          "start": 7.92,
+          "end": 8.04,
+          "probability": 0.9784597158432007
+        },
+        {
+          "word": " particle",
+          "start": 8.04,
+          "end": 8.4,
+          "probability": 0.9965716600418091
+        },
+        {
+          "word": " starting",
+          "start": 8.4,
+          "end": 9.18,
+          "probability": 0.8626551628112793
+        },
+        {
+          "word": " from",
+          "start": 9.18,
+          "end": 9.5,
+          "probability": 0.9976825714111328
+        },
+        {
+          "word": " rest",
+          "start": 9.5,
+          "end": 9.76,
+          "probability": 0.9169533848762512
+        },
+        {
+          "word": " at",
+          "start": 9.76,
+          "end": 10.08,
+          "probability": 0.8594325184822083
+        },
+        {
+          "word": " t",
+          "start": 10.08,
+          "end": 10.28,
+          "probability": 0.8599883317947388
+        },
+        {
+          "word": " equal",
+          "start": 10.28,
+          "end": 10.48,
+          "probability": 0.666211724281311
+        },
+        {
+          "word": " to",
+          "start": 10.48,
+          "end": 10.68,
+          "probability": 0.9952139854431152
+        },
+        {
+          "word": " 0",
+          "start": 10.68,
+          "end": 10.88,
+          "probability": 0.7314200401306152
+        },
+        {
+          "word": " is",
+          "start": 10.88,
+          "end": 11.06,
+          "probability": 0.9838234186172485
+        },
+        {
+          "word": " given",
+          "start": 11.06,
+          "end": 11.28,
+          "probability": 0.9983229041099548
+        },
+        {
+          "word": " by",
+          "start": 11.28,
+          "end": 11.66,
+          "probability": 0.9948409199714661
+        },
+        {
+          "word": " s",
+          "start": 11.66,
+          "end": 12.32,
+          "probability": 0.8019283413887024
+        },
+        {
+          "word": " is",
+          "start": 12.32,
+          "end": 12.46,
+          "probability": 0.8558367490768433
+        },
+        {
+          "word": " equal",
+          "start": 12.46,
+          "end": 12.72,
+          "probability": 0.9953601956367493
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "seek": 0,
+      "start": 12.72,
+      "end": 14.82,
+      "text": " to 60 square minus t cube.",
+      "tokens": [
+        51006,
+        281,
+        4060,
+        3732,
+        3175,
+        256,
+        13728,
+        13,
+        51150
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.17793655395507812,
+      "compression_ratio": 1.6304347826086956,
+      "no_speech_prob": 0.20911017060279846,
+      "words": [
+        {
+          "word": " to",
+          "start": 12.72,
+          "end": 12.98,
+          "probability": 0.997019350528717
+        },
+        {
+          "word": " 60",
+          "start": 12.98,
+          "end": 13.54,
+          "probability": 0.9763859510421753
+        },
+        {
+          "word": " square",
+          "start": 13.54,
+          "end": 13.94,
+          "probability": 0.926876425743103
+        },
+        {
+          "word": " minus",
+          "start": 13.94,
+          "end": 14.3,
+          "probability": 0.9781138896942139
+        },
+        {
+          "word": " t",
+          "start": 14.3,
+          "end": 14.56,
+          "probability": 0.9538403153419495
+        },
+        {
+          "word": " cube.",
+          "start": 14.56,
+          "end": 14.82,
+          "probability": 0.8814040422439575
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "seek": 0,
+      "start": 15.42,
+      "end": 20.54,
+      "text": " The time in which the particle will obtain 0 velocity again.",
+      "tokens": [
+        51150,
+        440,
+        565,
+        294,
+        597,
+        264,
+        12359,
+        486,
+        12701,
+        1958,
+        9269,
+        797,
+        13,
+        51432
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.17793655395507812,
+      "compression_ratio": 1.6304347826086956,
+      "no_speech_prob": 0.20911017060279846,
+      "words": [
+        {
+          "word": " The",
+          "start": 15.42,
+          "end": 15.74,
+          "probability": 0.985603928565979
+        },
+        {
+          "word": " time",
+          "start": 15.74,
+          "end": 16.02,
+          "probability": 0.9898235201835632
+        },
+        {
+          "word": " in",
+          "start": 16.02,
+          "end": 16.34,
+          "probability": 0.9928053021430969
+        },
+        {
+          "word": " which",
+          "start": 16.34,
+          "end": 16.72,
+          "probability": 0.9984079003334045
+        },
+        {
+          "word": " the",
+          "start": 16.72,
+          "end": 18.24,
+          "probability": 0.9645441770553589
+        },
+        {
+          "word": " particle",
+          "start": 18.24,
+          "end": 18.68,
+          "probability": 0.9944812059402466
+        },
+        {
+          "word": " will",
+          "start": 18.68,
+          "end": 18.94,
+          "probability": 0.9972177743911743
+        },
+        {
+          "word": " obtain",
+          "start": 18.94,
+          "end": 19.32,
+          "probability": 0.9467657804489136
+        },
+        {
+          "word": " 0",
+          "start": 19.32,
+          "end": 19.7,
+          "probability": 0.4853264093399048
+        },
+        {
+          "word": " velocity",
+          "start": 19.7,
+          "end": 20.04,
+          "probability": 0.9961318969726562
+        },
+        {
+          "word": " again.",
+          "start": 20.04,
+          "end": 20.54,
+          "probability": 0.9819836616516113
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "seek": 0,
+      "start": 21.08,
+      "end": 25.72,
+      "text": " So we have to find the time at which the particle has the velocity equal to 0.",
+      "tokens": [
+        51432,
+        407,
+        321,
+        362,
+        281,
+        915,
+        264,
+        565,
+        412,
+        597,
+        264,
+        12359,
+        575,
+        264,
+        9269,
+        2681,
+        281,
+        1958,
+        13,
+        51684
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.17793655395507812,
+      "compression_ratio": 1.6304347826086956,
+      "no_speech_prob": 0.20911017060279846,
+      "words": [
+        {
+          "word": " So",
+          "start": 21.08,
+          "end": 21.44,
+          "probability": 0.9828570485115051
+        },
+        {
+          "word": " we",
+          "start": 21.44,
+          "end": 21.74,
+          "probability": 0.6096119284629822
+        },
+        {
+          "word": " have",
+          "start": 21.74,
+          "end": 21.86,
+          "probability": 0.9985484480857849
+        },
+        {
+          "word": " to",
+          "start": 21.86,
+          "end": 22.02,
+          "probability": 0.998431384563446
+        },
+        {
+          "word": " find",
+          "start": 22.02,
+          "end": 22.26,
+          "probability": 0.9983408451080322
+        },
+        {
+          "word": " the",
+          "start": 22.26,
+          "end": 22.46,
+          "probability": 0.9917175769805908
+        },
+        {
+          "word": " time",
+          "start": 22.46,
+          "end": 22.7,
+          "probability": 0.9952030181884766
+        },
+        {
+          "word": " at",
+          "start": 22.7,
+          "end": 23.04,
+          "probability": 0.97524094581604
+        },
+        {
+          "word": " which",
+          "start": 23.04,
+          "end": 23.22,
+          "probability": 0.9986729621887207
+        },
+        {
+          "word": " the",
+          "start": 23.22,
+          "end": 23.44,
+          "probability": 0.9957964420318604
+        },
+        {
+          "word": " particle",
+          "start": 23.44,
+          "end": 23.9,
+          "probability": 0.9951475262641907
+        },
+        {
+          "word": " has",
+          "start": 23.9,
+          "end": 24.3,
+          "probability": 0.9714660048484802
+        },
+        {
+          "word": " the",
+          "start": 24.3,
+          "end": 24.5,
+          "probability": 0.9860357046127319
+        },
+        {
+          "word": " velocity",
+          "start": 24.5,
+          "end": 24.88,
+          "probability": 0.9988178610801697
+        },
+        {
+          "word": " equal",
+          "start": 24.88,
+          "end": 25.24,
+          "probability": 0.9872969388961792
+        },
+        {
+          "word": " to",
+          "start": 25.24,
+          "end": 25.44,
+          "probability": 0.9965100884437561
+        },
+        {
+          "word": " 0.",
+          "start": 25.44,
+          "end": 25.72,
+          "probability": 0.9489660859107971
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "seek": 2572,
+      "start": 26.36,
+      "end": 31.82,
+      "text": " So first we will find the function of the velocity that is velocity is given by derivative",
+      "tokens": [
+        50396,
+        407,
+        700,
+        321,
+        486,
+        915,
+        264,
+        2445,
+        295,
+        264,
+        9269,
+        300,
+        307,
+        9269,
+        307,
+        2212,
+        538,
+        13760,
+        50682
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.23258987875545725,
+      "compression_ratio": 2.011764705882353,
+      "no_speech_prob": 0.08207861334085464,
+      "words": [
+        {
+          "word": " So",
+          "start": 26.16,
+          "end": 26.44,
+          "probability": 0.6745852828025818
+        },
+        {
+          "word": " first",
+          "start": 26.44,
+          "end": 26.68,
+          "probability": 0.5285117626190186
+        },
+        {
+          "word": " we",
+          "start": 26.68,
+          "end": 26.84,
+          "probability": 0.8849936723709106
+        },
+        {
+          "word": " will",
+          "start": 26.84,
+          "end": 26.92,
+          "probability": 0.6168330907821655
+        },
+        {
+          "word": " find",
+          "start": 26.92,
+          "end": 27.16,
+          "probability": 0.9982205033302307
+        },
+        {
+          "word": " the",
+          "start": 27.16,
+          "end": 27.38,
+          "probability": 0.995265007019043
+        },
+        {
+          "word": " function",
+          "start": 27.38,
+          "end": 27.66,
+          "probability": 0.9945970773696899
+        },
+        {
+          "word": " of",
+          "start": 27.66,
+          "end": 27.84,
+          "probability": 0.9940692186355591
+        },
+        {
+          "word": " the",
+          "start": 27.84,
+          "end": 27.98,
+          "probability": 0.9872254729270935
+        },
+        {
+          "word": " velocity",
+          "start": 27.98,
+          "end": 28.38,
+          "probability": 0.996012806892395
+        },
+        {
+          "word": " that",
+          "start": 28.38,
+          "end": 29.06,
+          "probability": 0.6270811557769775
+        },
+        {
+          "word": " is",
+          "start": 29.06,
+          "end": 29.22,
+          "probability": 0.9862544536590576
+        },
+        {
+          "word": " velocity",
+          "start": 29.22,
+          "end": 29.7,
+          "probability": 0.9612696170806885
+        },
+        {
+          "word": " is",
+          "start": 29.7,
+          "end": 30.04,
+          "probability": 0.9535745978355408
+        },
+        {
+          "word": " given",
+          "start": 30.04,
+          "end": 30.26,
+          "probability": 0.9964379072189331
+        },
+        {
+          "word": " by",
+          "start": 30.26,
+          "end": 30.66,
+          "probability": 0.995518684387207
+        },
+        {
+          "word": " derivative",
+          "start": 30.66,
+          "end": 31.82,
+          "probability": 0.9741858243942261
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "seek": 2572,
+      "start": 31.82,
+      "end": 34.78,
+      "text": " of the displacement function that is ds by dt.",
+      "tokens": [
+        50682,
+        295,
+        264,
+        21899,
+        2445,
+        300,
+        307,
+        274,
+        82,
+        538,
+        36423,
+        13,
+        50856
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.23258987875545725,
+      "compression_ratio": 2.011764705882353,
+      "no_speech_prob": 0.08207861334085464,
+      "words": [
+        {
+          "word": " of",
+          "start": 31.82,
+          "end": 32.22,
+          "probability": 0.9937794804573059
+        },
+        {
+          "word": " the",
+          "start": 32.22,
+          "end": 32.4,
+          "probability": 0.6690056324005127
+        },
+        {
+          "word": " displacement",
+          "start": 32.4,
+          "end": 32.86,
+          "probability": 0.9992356300354004
+        },
+        {
+          "word": " function",
+          "start": 32.86,
+          "end": 33.36,
+          "probability": 0.9920582175254822
+        },
+        {
+          "word": " that",
+          "start": 33.36,
+          "end": 33.62,
+          "probability": 0.8577885627746582
+        },
+        {
+          "word": " is",
+          "start": 33.62,
+          "end": 33.84,
+          "probability": 0.9953018426895142
+        },
+        {
+          "word": " ds",
+          "start": 33.84,
+          "end": 34.24,
+          "probability": 0.5007834285497665
+        },
+        {
+          "word": " by",
+          "start": 34.24,
+          "end": 34.44,
+          "probability": 0.7723163962364197
+        },
+        {
+          "word": " dt.",
+          "start": 34.44,
+          "end": 34.78,
+          "probability": 0.9445260763168335
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "seek": 2572,
+      "start": 35.52,
+      "end": 41.9,
+      "text": " So from here the derivative of this function, this 60 square minus t cube that will be equal",
+      "tokens": [
+        50856,
+        407,
+        490,
+        510,
+        264,
+        13760,
+        295,
+        341,
+        2445,
+        11,
+        341,
+        4060,
+        3732,
+        3175,
+        256,
+        13728,
+        300,
+        486,
+        312,
+        2681,
+        51176
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.23258987875545725,
+      "compression_ratio": 2.011764705882353,
+      "no_speech_prob": 0.08207861334085464,
+      "words": [
+        {
+          "word": " So",
+          "start": 35.52,
+          "end": 35.64,
+          "probability": 0.9794269800186157
+        },
+        {
+          "word": " from",
+          "start": 35.64,
+          "end": 35.92,
+          "probability": 0.8984702825546265
+        },
+        {
+          "word": " here",
+          "start": 35.92,
+          "end": 36.24,
+          "probability": 0.9980201721191406
+        },
+        {
+          "word": " the",
+          "start": 36.24,
+          "end": 36.82,
+          "probability": 0.7133554816246033
+        },
+        {
+          "word": " derivative",
+          "start": 36.82,
+          "end": 37.18,
+          "probability": 0.9988885521888733
+        },
+        {
+          "word": " of",
+          "start": 37.18,
+          "end": 37.64,
+          "probability": 0.9982744455337524
+        },
+        {
+          "word": " this",
+          "start": 37.64,
+          "end": 37.88,
+          "probability": 0.9862378835678101
+        },
+        {
+          "word": " function,",
+          "start": 37.88,
+          "end": 38.34,
+          "probability": 0.9961279034614563
+        },
+        {
+          "word": " this",
+          "start": 38.7,
+          "end": 38.88,
+          "probability": 0.9728849530220032
+        },
+        {
+          "word": " 60",
+          "start": 38.88,
+          "end": 39.52,
+          "probability": 0.9310929179191589
+        },
+        {
+          "word": " square",
+          "start": 39.52,
+          "end": 39.86,
+          "probability": 0.9118095636367798
+        },
+        {
+          "word": " minus",
+          "start": 39.86,
+          "end": 40.18,
+          "probability": 0.9248009920120239
+        },
+        {
+          "word": " t",
+          "start": 40.18,
+          "end": 40.46,
+          "probability": 0.8655635118484497
+        },
+        {
+          "word": " cube",
+          "start": 40.46,
+          "end": 40.74,
+          "probability": 0.46898719668388367
+        },
+        {
+          "word": " that",
+          "start": 40.74,
+          "end": 41.3,
+          "probability": 0.6759412884712219
+        },
+        {
+          "word": " will",
+          "start": 41.3,
+          "end": 41.52,
+          "probability": 0.9836496114730835
+        },
+        {
+          "word": " be",
+          "start": 41.52,
+          "end": 41.66,
+          "probability": 0.9978931546211243
+        },
+        {
+          "word": " equal",
+          "start": 41.66,
+          "end": 41.9,
+          "probability": 0.9790442585945129
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "seek": 2572,
+      "start": 41.9,
+      "end": 49.62,
+      "text": " to 6 multiplied by the derivative of t square that will be 2t minus the derivative of t cube",
+      "tokens": [
+        51176,
+        281,
+        1386,
+        17207,
+        538,
+        264,
+        13760,
+        295,
+        256,
+        3732,
+        300,
+        486,
+        312,
+        568,
+        83,
+        3175,
+        264,
+        13760,
+        295,
+        256,
+        13728,
+        51560
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.23258987875545725,
+      "compression_ratio": 2.011764705882353,
+      "no_speech_prob": 0.08207861334085464,
+      "words": [
+        {
+          "word": " to",
+          "start": 41.9,
+          "end": 42.18,
+          "probability": 0.9963412880897522
+        },
+        {
+          "word": " 6",
+          "start": 42.18,
+          "end": 43.64,
+          "probability": 0.928013801574707
+        },
+        {
+          "word": " multiplied",
+          "start": 43.64,
+          "end": 44.36,
+          "probability": 0.9799507856369019
+        },
+        {
+          "word": " by",
+          "start": 44.36,
+          "end": 44.68,
+          "probability": 0.9968056678771973
+        },
+        {
+          "word": " the",
+          "start": 44.68,
+          "end": 44.86,
+          "probability": 0.947806179523468
+        },
+        {
+          "word": " derivative",
+          "start": 44.86,
+          "end": 45.12,
+          "probability": 0.9993258714675903
+        },
+        {
+          "word": " of",
+          "start": 45.12,
+          "end": 45.54,
+          "probability": 0.998874843120575
+        },
+        {
+          "word": " t",
+          "start": 45.54,
+          "end": 45.74,
+          "probability": 0.94777512550354
+        },
+        {
+          "word": " square",
+          "start": 45.74,
+          "end": 46.0,
+          "probability": 0.9466320276260376
+        },
+        {
+          "word": " that",
+          "start": 46.0,
+          "end": 46.22,
+          "probability": 0.8464082479476929
+        },
+        {
+          "word": " will",
+          "start": 46.22,
+          "end": 46.42,
+          "probability": 0.9924088716506958
+        },
+        {
+          "word": " be",
+          "start": 46.42,
+          "end": 46.58,
+          "probability": 0.9958114624023438
+        },
+        {
+          "word": " 2t",
+          "start": 46.58,
+          "end": 46.94,
+          "probability": 0.8231569826602936
+        },
+        {
+          "word": " minus",
+          "start": 46.94,
+          "end": 48.28,
+          "probability": 0.942499577999115
+        },
+        {
+          "word": " the",
+          "start": 48.28,
+          "end": 48.64,
+          "probability": 0.3721167743206024
+        },
+        {
+          "word": " derivative",
+          "start": 48.64,
+          "end": 48.86,
+          "probability": 0.9990938901901245
+        },
+        {
+          "word": " of",
+          "start": 48.86,
+          "end": 49.24,
+          "probability": 0.9955822825431824
+        },
+        {
+          "word": " t",
+          "start": 49.24,
+          "end": 49.42,
+          "probability": 0.9788917303085327
+        },
+        {
+          "word": " cube",
+          "start": 49.42,
+          "end": 49.62,
+          "probability": 0.9952850937843323
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "seek": 2572,
+      "start": 49.62,
+      "end": 50.76,
+      "text": " will be 3t square.",
+      "tokens": [
+        51560,
+        486,
+        312,
+        805,
+        83,
+        3732,
+        13,
+        51658
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.23258987875545725,
+      "compression_ratio": 2.011764705882353,
+      "no_speech_prob": 0.08207861334085464,
+      "words": [
+        {
+          "word": " will",
+          "start": 49.62,
+          "end": 49.8,
+          "probability": 0.9908490180969238
+        },
+        {
+          "word": " be",
+          "start": 49.8,
+          "end": 49.96,
+          "probability": 0.9966719150543213
+        },
+        {
+          "word": " 3t",
+          "start": 49.96,
+          "end": 50.42,
+          "probability": 0.977699488401413
+        },
+        {
+          "word": " square.",
+          "start": 50.42,
+          "end": 50.76,
+          "probability": 0.9581232070922852
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "seek": 5076,
+      "start": 51.6,
+      "end": 59.7,
+      "text": " So this is our velocity function that is a 12t minus 3t square and now we have to just",
+      "tokens": [
+        50406,
+        407,
+        341,
+        307,
+        527,
+        9269,
+        2445,
+        300,
+        307,
+        257,
+        2272,
+        83,
+        3175,
+        805,
+        83,
+        3732,
+        293,
+        586,
+        321,
+        362,
+        281,
+        445,
+        50816
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.2029598400156985,
+      "compression_ratio": 1.7772020725388602,
+      "no_speech_prob": 0.03399199992418289,
+      "words": [
+        {
+          "word": " So",
+          "start": 51.349999999999994,
+          "end": 51.62,
+          "probability": 0.4196161925792694
+        },
+        {
+          "word": " this",
+          "start": 51.62,
+          "end": 51.84,
+          "probability": 0.5465800166130066
+        },
+        {
+          "word": " is",
+          "start": 51.84,
+          "end": 52.0,
+          "probability": 0.9899896383285522
+        },
+        {
+          "word": " our",
+          "start": 52.0,
+          "end": 52.2,
+          "probability": 0.8316121101379395
+        },
+        {
+          "word": " velocity",
+          "start": 52.2,
+          "end": 52.62,
+          "probability": 0.9982409477233887
+        },
+        {
+          "word": " function",
+          "start": 52.62,
+          "end": 52.98,
+          "probability": 0.9951581358909607
+        },
+        {
+          "word": " that",
+          "start": 52.98,
+          "end": 53.28,
+          "probability": 0.6550650000572205
+        },
+        {
+          "word": " is",
+          "start": 53.28,
+          "end": 53.48,
+          "probability": 0.9967828989028931
+        },
+        {
+          "word": " a",
+          "start": 53.48,
+          "end": 53.74,
+          "probability": 0.7987100481987
+        },
+        {
+          "word": " 12t",
+          "start": 53.74,
+          "end": 55.58,
+          "probability": 0.5818178355693817
+        },
+        {
+          "word": " minus",
+          "start": 55.58,
+          "end": 56.58,
+          "probability": 0.7104023694992065
+        },
+        {
+          "word": " 3t",
+          "start": 56.58,
+          "end": 57.8,
+          "probability": 0.9110468029975891
+        },
+        {
+          "word": " square",
+          "start": 57.8,
+          "end": 58.34,
+          "probability": 0.8078908920288086
+        },
+        {
+          "word": " and",
+          "start": 58.34,
+          "end": 58.68,
+          "probability": 0.5816646814346313
+        },
+        {
+          "word": " now",
+          "start": 58.68,
+          "end": 58.88,
+          "probability": 0.9889168739318848
+        },
+        {
+          "word": " we",
+          "start": 58.88,
+          "end": 59.08,
+          "probability": 0.982546329498291
+        },
+        {
+          "word": " have",
+          "start": 59.08,
+          "end": 59.28,
+          "probability": 0.986861526966095
+        },
+        {
+          "word": " to",
+          "start": 59.28,
+          "end": 59.46,
+          "probability": 0.9760042428970337
+        },
+        {
+          "word": " just",
+          "start": 59.46,
+          "end": 59.7,
+          "probability": 0.9600666165351868
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "seek": 5076,
+      "start": 59.7,
+      "end": 63.16,
+      "text": " put it equal to 0 according to the condition in the question.",
+      "tokens": [
+        50816,
+        829,
+        309,
+        2681,
+        281,
+        1958,
+        4650,
+        281,
+        264,
+        4188,
+        294,
+        264,
+        1168,
+        13,
+        51016
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.2029598400156985,
+      "compression_ratio": 1.7772020725388602,
+      "no_speech_prob": 0.03399199992418289,
+      "words": [
+        {
+          "word": " put",
+          "start": 59.7,
+          "end": 59.94,
+          "probability": 0.9909369349479675
+        },
+        {
+          "word": " it",
+          "start": 59.94,
+          "end": 60.22,
+          "probability": 0.7970781922340393
+        },
+        {
+          "word": " equal",
+          "start": 60.22,
+          "end": 60.58,
+          "probability": 0.9430898427963257
+        },
+        {
+          "word": " to",
+          "start": 60.58,
+          "end": 60.8,
+          "probability": 0.989888608455658
+        },
+        {
+          "word": " 0",
+          "start": 60.8,
+          "end": 61.08,
+          "probability": 0.7712866067886353
+        },
+        {
+          "word": " according",
+          "start": 61.08,
+          "end": 61.68,
+          "probability": 0.8060621023178101
+        },
+        {
+          "word": " to",
+          "start": 61.68,
+          "end": 62.08,
+          "probability": 0.9927927255630493
+        },
+        {
+          "word": " the",
+          "start": 62.08,
+          "end": 62.22,
+          "probability": 0.9808987379074097
+        },
+        {
+          "word": " condition",
+          "start": 62.22,
+          "end": 62.58,
+          "probability": 0.9484791159629822
+        },
+        {
+          "word": " in",
+          "start": 62.58,
+          "end": 62.76,
+          "probability": 0.8333556652069092
+        },
+        {
+          "word": " the",
+          "start": 62.76,
+          "end": 62.88,
+          "probability": 0.9703481197357178
+        },
+        {
+          "word": " question.",
+          "start": 62.88,
+          "end": 63.16,
+          "probability": 0.7365424036979675
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "seek": 5076,
+      "start": 63.74,
+      "end": 71.86,
+      "text": " So after taking 3 common and t common we get 3t and here this we get s 4 minus t and this",
+      "tokens": [
+        51016,
+        407,
+        934,
+        1940,
+        805,
+        2689,
+        293,
+        256,
+        2689,
+        321,
+        483,
+        805,
+        83,
+        293,
+        510,
+        341,
+        321,
+        483,
+        262,
+        1017,
+        3175,
+        256,
+        293,
+        341,
+        51416
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.2029598400156985,
+      "compression_ratio": 1.7772020725388602,
+      "no_speech_prob": 0.03399199992418289,
+      "words": [
+        {
+          "word": " So",
+          "start": 63.74,
+          "end": 63.88,
+          "probability": 0.9811703562736511
+        },
+        {
+          "word": " after",
+          "start": 63.88,
+          "end": 64.34,
+          "probability": 0.9377787113189697
+        },
+        {
+          "word": " taking",
+          "start": 64.34,
+          "end": 64.66,
+          "probability": 0.9957752823829651
+        },
+        {
+          "word": " 3",
+          "start": 64.66,
+          "end": 65.08,
+          "probability": 0.8210306167602539
+        },
+        {
+          "word": " common",
+          "start": 65.08,
+          "end": 65.4,
+          "probability": 0.5479680895805359
+        },
+        {
+          "word": " and",
+          "start": 65.4,
+          "end": 65.7,
+          "probability": 0.8633427023887634
+        },
+        {
+          "word": " t",
+          "start": 65.7,
+          "end": 65.92,
+          "probability": 0.5808610320091248
+        },
+        {
+          "word": " common",
+          "start": 65.92,
+          "end": 66.2,
+          "probability": 0.9548651576042175
+        },
+        {
+          "word": " we",
+          "start": 66.2,
+          "end": 66.72,
+          "probability": 0.5895359516143799
+        },
+        {
+          "word": " get",
+          "start": 66.72,
+          "end": 66.9,
+          "probability": 0.9933974742889404
+        },
+        {
+          "word": " 3t",
+          "start": 66.9,
+          "end": 67.44,
+          "probability": 0.9383469521999359
+        },
+        {
+          "word": " and",
+          "start": 67.44,
+          "end": 68.4,
+          "probability": 0.9011855125427246
+        },
+        {
+          "word": " here",
+          "start": 68.4,
+          "end": 68.66,
+          "probability": 0.9831141233444214
+        },
+        {
+          "word": " this",
+          "start": 68.66,
+          "end": 68.88,
+          "probability": 0.8987071514129639
+        },
+        {
+          "word": " we",
+          "start": 68.88,
+          "end": 69.04,
+          "probability": 0.9450755715370178
+        },
+        {
+          "word": " get",
+          "start": 69.04,
+          "end": 69.26,
+          "probability": 0.9932690262794495
+        },
+        {
+          "word": " s",
+          "start": 69.26,
+          "end": 69.58,
+          "probability": 0.32329806685447693
+        },
+        {
+          "word": " 4",
+          "start": 69.58,
+          "end": 69.88,
+          "probability": 0.3788414001464844
+        },
+        {
+          "word": " minus",
+          "start": 69.88,
+          "end": 70.36,
+          "probability": 0.9658797979354858
+        },
+        {
+          "word": " t",
+          "start": 70.36,
+          "end": 71.16,
+          "probability": 0.802882194519043
+        },
+        {
+          "word": " and",
+          "start": 71.16,
+          "end": 71.68,
+          "probability": 0.9018063545227051
+        },
+        {
+          "word": " this",
+          "start": 71.68,
+          "end": 71.86,
+          "probability": 0.9497414231300354
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "seek": 5076,
+      "start": 71.86,
+      "end": 72.66,
+      "text": " is equal to 0.",
+      "tokens": [
+        51416,
+        307,
+        2681,
+        281,
+        1958,
+        13,
+        51486
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.2029598400156985,
+      "compression_ratio": 1.7772020725388602,
+      "no_speech_prob": 0.03399199992418289,
+      "words": [
+        {
+          "word": " is",
+          "start": 71.86,
+          "end": 72.0,
+          "probability": 0.616638720035553
+        },
+        {
+          "word": " equal",
+          "start": 72.0,
+          "end": 72.24,
+          "probability": 0.9930986762046814
+        },
+        {
+          "word": " to",
+          "start": 72.24,
+          "end": 72.46,
+          "probability": 0.9954309463500977
+        },
+        {
+          "word": " 0.",
+          "start": 72.46,
+          "end": 72.66,
+          "probability": 0.9621050357818604
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "seek": 5076,
+      "start": 73.08,
+      "end": 79.0,
+      "text": " So one value of time is t equal to 0 which was the initial condition of the question that",
+      "tokens": [
+        51486,
+        407,
+        472,
+        2158,
+        295,
+        565,
+        307,
+        256,
+        2681,
+        281,
+        1958,
+        597,
+        390,
+        264,
+        5883,
+        4188,
+        295,
+        264,
+        1168,
+        300,
+        51782
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.2029598400156985,
+      "compression_ratio": 1.7772020725388602,
+      "no_speech_prob": 0.03399199992418289,
+      "words": [
+        {
+          "word": " So",
+          "start": 73.08,
+          "end": 73.3,
+          "probability": 0.9730817675590515
+        },
+        {
+          "word": " one",
+          "start": 73.3,
+          "end": 73.88,
+          "probability": 0.7264155745506287
+        },
+        {
+          "word": " value",
+          "start": 73.88,
+          "end": 74.2,
+          "probability": 0.9924811124801636
+        },
+        {
+          "word": " of",
+          "start": 74.2,
+          "end": 74.38,
+          "probability": 0.9958534240722656
+        },
+        {
+          "word": " time",
+          "start": 74.38,
+          "end": 74.6,
+          "probability": 0.9787181615829468
+        },
+        {
+          "word": " is",
+          "start": 74.6,
+          "end": 74.94,
+          "probability": 0.988122284412384
+        },
+        {
+          "word": " t",
+          "start": 74.94,
+          "end": 75.18,
+          "probability": 0.9533785581588745
+        },
+        {
+          "word": " equal",
+          "start": 75.18,
+          "end": 75.4,
+          "probability": 0.9382482171058655
+        },
+        {
+          "word": " to",
+          "start": 75.4,
+          "end": 75.62,
+          "probability": 0.996411144733429
+        },
+        {
+          "word": " 0",
+          "start": 75.62,
+          "end": 75.88,
+          "probability": 0.9475589990615845
+        },
+        {
+          "word": " which",
+          "start": 75.88,
+          "end": 76.7,
+          "probability": 0.7787695527076721
+        },
+        {
+          "word": " was",
+          "start": 76.7,
+          "end": 76.86,
+          "probability": 0.9944268465042114
+        },
+        {
+          "word": " the",
+          "start": 76.86,
+          "end": 77.12,
+          "probability": 0.9903745651245117
+        },
+        {
+          "word": " initial",
+          "start": 77.12,
+          "end": 77.42,
+          "probability": 0.9996141195297241
+        },
+        {
+          "word": " condition",
+          "start": 77.42,
+          "end": 77.88,
+          "probability": 0.9801913499832153
+        },
+        {
+          "word": " of",
+          "start": 77.88,
+          "end": 78.08,
+          "probability": 0.9944188594818115
+        },
+        {
+          "word": " the",
+          "start": 78.08,
+          "end": 78.22,
+          "probability": 0.9901250600814819
+        },
+        {
+          "word": " question",
+          "start": 78.22,
+          "end": 78.48,
+          "probability": 0.9604370594024658
+        },
+        {
+          "word": " that",
+          "start": 78.48,
+          "end": 79.0,
+          "probability": 0.9488368630409241
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "seek": 7900,
+      "start": 79.0,
+      "end": 83.36,
+      "text": " starting from the rest and another value of time can be given by this factor.",
+      "tokens": [
+        50364,
+        2891,
+        490,
+        264,
+        1472,
+        293,
+        1071,
+        2158,
+        295,
+        565,
+        393,
+        312,
+        2212,
+        538,
+        341,
+        5952,
+        13,
+        50614
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.23968869586323582,
+      "compression_ratio": 1.592964824120603,
+      "no_speech_prob": 0.01821785792708397,
+      "words": [
+        {
+          "word": " starting",
+          "start": 79.0,
+          "end": 79.56,
+          "probability": 0.685999870300293
+        },
+        {
+          "word": " from",
+          "start": 79.56,
+          "end": 79.8,
+          "probability": 0.9966179728507996
+        },
+        {
+          "word": " the",
+          "start": 79.8,
+          "end": 79.98,
+          "probability": 0.9859948754310608
+        },
+        {
+          "word": " rest",
+          "start": 79.98,
+          "end": 80.18,
+          "probability": 0.968258261680603
+        },
+        {
+          "word": " and",
+          "start": 80.18,
+          "end": 80.82,
+          "probability": 0.7567569017410278
+        },
+        {
+          "word": " another",
+          "start": 80.82,
+          "end": 81.24,
+          "probability": 0.9232500195503235
+        },
+        {
+          "word": " value",
+          "start": 81.24,
+          "end": 81.54,
+          "probability": 0.905432939529419
+        },
+        {
+          "word": " of",
+          "start": 81.54,
+          "end": 81.74,
+          "probability": 0.9907212257385254
+        },
+        {
+          "word": " time",
+          "start": 81.74,
+          "end": 81.88,
+          "probability": 0.9905807375907898
+        },
+        {
+          "word": " can",
+          "start": 81.88,
+          "end": 82.14,
+          "probability": 0.9972713589668274
+        },
+        {
+          "word": " be",
+          "start": 82.14,
+          "end": 82.32,
+          "probability": 0.9980365633964539
+        },
+        {
+          "word": " given",
+          "start": 82.32,
+          "end": 82.52,
+          "probability": 0.9970226883888245
+        },
+        {
+          "word": " by",
+          "start": 82.52,
+          "end": 82.72,
+          "probability": 0.9979813694953918
+        },
+        {
+          "word": " this",
+          "start": 82.72,
+          "end": 82.94,
+          "probability": 0.9082939624786377
+        },
+        {
+          "word": " factor.",
+          "start": 82.94,
+          "end": 83.36,
+          "probability": 0.7682366967201233
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "seek": 7900,
+      "start": 84.04,
+      "end": 88.68,
+      "text": " So we get this s t minus 4 equal to 0 or we can say t equal to 4.",
+      "tokens": [
+        50614,
+        407,
+        321,
+        483,
+        341,
+        262,
+        256,
+        3175,
+        1017,
+        2681,
+        281,
+        1958,
+        420,
+        321,
+        393,
+        584,
+        256,
+        2681,
+        281,
+        1017,
+        13,
+        50860
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.23968869586323582,
+      "compression_ratio": 1.592964824120603,
+      "no_speech_prob": 0.01821785792708397,
+      "words": [
+        {
+          "word": " So",
+          "start": 84.04,
+          "end": 84.08,
+          "probability": 0.9000490307807922
+        },
+        {
+          "word": " we",
+          "start": 84.08,
+          "end": 84.34,
+          "probability": 0.749358594417572
+        },
+        {
+          "word": " get",
+          "start": 84.34,
+          "end": 84.52,
+          "probability": 0.9947945475578308
+        },
+        {
+          "word": " this",
+          "start": 84.52,
+          "end": 84.86,
+          "probability": 0.946993350982666
+        },
+        {
+          "word": " s",
+          "start": 84.86,
+          "end": 85.08,
+          "probability": 0.29648053646087646
+        },
+        {
+          "word": " t",
+          "start": 85.08,
+          "end": 85.36,
+          "probability": 0.4410550594329834
+        },
+        {
+          "word": " minus",
+          "start": 85.36,
+          "end": 85.76,
+          "probability": 0.8026271462440491
+        },
+        {
+          "word": " 4",
+          "start": 85.76,
+          "end": 86.02,
+          "probability": 0.9041600823402405
+        },
+        {
+          "word": " equal",
+          "start": 86.02,
+          "end": 86.28,
+          "probability": 0.8123309016227722
+        },
+        {
+          "word": " to",
+          "start": 86.28,
+          "end": 86.5,
+          "probability": 0.9927983283996582
+        },
+        {
+          "word": " 0",
+          "start": 86.5,
+          "end": 86.72,
+          "probability": 0.8451981544494629
+        },
+        {
+          "word": " or",
+          "start": 86.72,
+          "end": 87.38,
+          "probability": 0.8286020159721375
+        },
+        {
+          "word": " we",
+          "start": 87.38,
+          "end": 87.5,
+          "probability": 0.9749116897583008
+        },
+        {
+          "word": " can",
+          "start": 87.5,
+          "end": 87.62,
+          "probability": 0.9710628390312195
+        },
+        {
+          "word": " say",
+          "start": 87.62,
+          "end": 87.8,
+          "probability": 0.3831479549407959
+        },
+        {
+          "word": " t",
+          "start": 87.8,
+          "end": 88.0,
+          "probability": 0.9127100706100464
+        },
+        {
+          "word": " equal",
+          "start": 88.0,
+          "end": 88.24,
+          "probability": 0.9888331890106201
+        },
+        {
+          "word": " to",
+          "start": 88.24,
+          "end": 88.44,
+          "probability": 0.9790944457054138
+        },
+        {
+          "word": " 4.",
+          "start": 88.44,
+          "end": 88.68,
+          "probability": 0.9606006145477295
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "seek": 7900,
+      "start": 88.88,
+      "end": 93.56,
+      "text": " So 4 second is the time at which the particle again comes to rest.",
+      "tokens": [
+        50860,
+        407,
+        1017,
+        1150,
+        307,
+        264,
+        565,
+        412,
+        597,
+        264,
+        12359,
+        797,
+        1487,
+        281,
+        1472,
+        13,
+        51112
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.23968869586323582,
+      "compression_ratio": 1.592964824120603,
+      "no_speech_prob": 0.01821785792708397,
+      "words": [
+        {
+          "word": " So",
+          "start": 88.88,
+          "end": 88.98,
+          "probability": 0.9437991976737976
+        },
+        {
+          "word": " 4",
+          "start": 88.98,
+          "end": 89.88,
+          "probability": 0.4597260355949402
+        },
+        {
+          "word": " second",
+          "start": 89.88,
+          "end": 90.22,
+          "probability": 0.9207342267036438
+        },
+        {
+          "word": " is",
+          "start": 90.22,
+          "end": 90.84,
+          "probability": 0.9705851078033447
+        },
+        {
+          "word": " the",
+          "start": 90.84,
+          "end": 90.98,
+          "probability": 0.9966338276863098
+        },
+        {
+          "word": " time",
+          "start": 90.98,
+          "end": 91.2,
+          "probability": 0.9989520311355591
+        },
+        {
+          "word": " at",
+          "start": 91.2,
+          "end": 91.42,
+          "probability": 0.9773468375205994
+        },
+        {
+          "word": " which",
+          "start": 91.42,
+          "end": 91.54,
+          "probability": 0.9988645315170288
+        },
+        {
+          "word": " the",
+          "start": 91.54,
+          "end": 91.76,
+          "probability": 0.9954956769943237
+        },
+        {
+          "word": " particle",
+          "start": 91.76,
+          "end": 92.14,
+          "probability": 0.9883335828781128
+        },
+        {
+          "word": " again",
+          "start": 92.14,
+          "end": 92.78,
+          "probability": 0.9769169688224792
+        },
+        {
+          "word": " comes",
+          "start": 92.78,
+          "end": 93.08,
+          "probability": 0.5293543934822083
+        },
+        {
+          "word": " to",
+          "start": 93.08,
+          "end": 93.28,
+          "probability": 0.9945443868637085
+        },
+        {
+          "word": " rest.",
+          "start": 93.28,
+          "end": 93.56,
+          "probability": 0.8201594948768616
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "seek": 7900,
+      "start": 93.92,
+      "end": 96.38,
+      "text": " So answer for this question which will be option number b.",
+      "tokens": [
+        51112,
+        407,
+        1867,
+        337,
+        341,
+        1168,
+        597,
+        486,
+        312,
+        3614,
+        1230,
+        272,
+        13,
+        51256
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.23968869586323582,
+      "compression_ratio": 1.592964824120603,
+      "no_speech_prob": 0.01821785792708397,
+      "words": [
+        {
+          "word": " So",
+          "start": 93.92,
+          "end": 94.04,
+          "probability": 0.9834769368171692
+        },
+        {
+          "word": " answer",
+          "start": 94.04,
+          "end": 94.32,
+          "probability": 0.9441858530044556
+        },
+        {
+          "word": " for",
+          "start": 94.32,
+          "end": 94.54,
+          "probability": 0.9813693761825562
+        },
+        {
+          "word": " this",
+          "start": 94.54,
+          "end": 94.74,
+          "probability": 0.9958674907684326
+        },
+        {
+          "word": " question",
+          "start": 94.74,
+          "end": 95.06,
+          "probability": 0.9953460097312927
+        },
+        {
+          "word": " which",
+          "start": 95.06,
+          "end": 95.26,
+          "probability": 0.4338788390159607
+        },
+        {
+          "word": " will",
+          "start": 95.26,
+          "end": 95.34,
+          "probability": 0.5261815786361694
+        },
+        {
+          "word": " be",
+          "start": 95.34,
+          "end": 95.42,
+          "probability": 0.9957631826400757
+        },
+        {
+          "word": " option",
+          "start": 95.42,
+          "end": 95.84,
+          "probability": 0.8798248171806335
+        },
+        {
+          "word": " number",
+          "start": 95.84,
+          "end": 96.14,
+          "probability": 0.9428189396858215
+        },
+        {
+          "word": " b.",
+          "start": 96.14,
+          "end": 96.38,
+          "probability": 0.571652352809906
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "seek": 7900,
+      "start": 96.86,
+      "end": 97.2,
+      "text": " Thank you.",
+      "tokens": [
+        51256,
+        1044,
+        291,
+        13,
+        51306
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.23968869586323582,
+      "compression_ratio": 1.592964824120603,
+      "no_speech_prob": 0.01821785792708397,
+      "words": [
+        {
+          "word": " Thank",
+          "start": 96.86,
+          "end": 96.98,
+          "probability": 0.9881395101547241
+        },
+        {
+          "word": " you.",
+          "start": 96.98,
+          "end": 97.2,
+          "probability": 0.9888502955436707
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "seek": 7900,
+      "start": 97.7,
+      "end": 99.24,
+      "text": " I hope you understand this solution.",
+      "tokens": [
+        51306,
+        286,
+        1454,
+        291,
+        1223,
+        341,
+        3827,
+        13,
+        51382
+      ],
+      "temperature": 0.0,
+      "avg_logprob": -0.23968869586323582,
+      "compression_ratio": 1.592964824120603,
+      "no_speech_prob": 0.01821785792708397,
+      "words": [
+        {
+          "word": " I",
+          "start": 97.7,
+          "end": 98.02,
+          "probability": 0.9921179413795471
+        },
+        {
+          "word": " hope",
+          "start": 98.02,
+          "end": 98.22,
+          "probability": 0.999113142490387
+        },
+        {
+          "word": " you",
+          "start": 98.22,
+          "end": 98.42,
+          "probability": 0.9967862367630005
+        },
+        {
+          "word": " understand",
+          "start": 98.42,
+          "end": 98.76,
+          "probability": 0.9714545607566833
+        },
+        {
+          "word": " this",
+          "start": 98.76,
+          "end": 99.1,
+          "probability": 0.7645107507705688
+        },
+        {
+          "word": " solution.",
+          "start": 99.1,
+          "end": 99.24,
+          "probability": 0.2431051880121231
+        }
+      ]
+    }
+  ],
+  "language": "en"
+}

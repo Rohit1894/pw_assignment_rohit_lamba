@@ -124,6 +124,11 @@ input/question.png   ← your MCQ question image
 input/narration.mp3  ← teacher's audio explanation
 ```
 
+Once you have placed your files in the `input/` folder, run the pipeline command pointing to these paths:
+```bash
+python main.py --image input/question.png --audio input/narration.mp3 --output output/final.mp4
+```
+
 ---
 
 ## Usage
@@ -163,6 +168,52 @@ python main.py --whisper-model medium
 | `--annotations`     | `output/annotations.json`| Where to save generated annotations            |
 | `--whisper-model`   | `base`                   | Whisper model size: tiny/base/small/medium/large |
 | `--skip-transcribe` | `false`                  | Reuse existing transcript instead of re-transcribing |
+
+### Running on New Inputs (Image & Audio)
+
+To automate the whiteboard solving video generation for a completely **new question image** and **narration audio**:
+
+#### 1. Setup your Google Gemini API Key
+The system uses the Gemini API to analyze the question text and audio transcript dynamically to generate aligned solving annotations.
+*   **On Windows (PowerShell)**:
+    ```powershell
+    $env:GEMINI_API_KEY="your_actual_gemini_api_key"
+    ```
+*   **On Windows (CMD)**:
+    ```cmd
+    set GEMINI_API_KEY=your_actual_gemini_api_key
+    ```
+*   **On Linux/macOS**:
+    ```bash
+    export GEMINI_API_KEY="your_actual_gemini_api_key"
+    ```
+
+#### 2. Run the command
+If your Gemini API key is valid and has sufficient quota, simply copy your new question image and narration audio to the workspace, then run:
+```bash
+python main.py --image input/new_question.png --audio input/new_narration.mp3 --output output/new_final.mp4
+```
+*Note: Do not pass the `--skip-transcribe` flag since a new narration audio needs to be transcribed from scratch.*
+
+#### 3. Handling API Key Rate Limits / Quota Exceeded (429 Fallback)
+If your Gemini API key is rate-limited or exhausted:
+1.  **Transcribe the new audio file**:
+    ```bash
+    python scripts/transcribe.py input/new_narration.mp3 output/new_transcript.json
+    ```
+2.  **Open the transcript file** (`output/new_transcript.json`), inspect what is said by the teacher, and write the timeline of solving steps inside a custom JSON file (e.g. `output/new_annotations.json`) using this schema:
+    ```json
+    [
+      { "time": 10.0, "action": "underline_existing", "target": "coordinate_or_term" },
+      { "time": 30.5, "action": "write_equation", "text": "y = mx + c" },
+      { "time": 94.0, "action": "tick_answer", "target": "B" }
+    ]
+    ```
+3.  **Compile the video** directly without calling the Gemini API using:
+    ```bash
+    python run_new_question.py
+    ```
+    *(You can update the image, audio, and annotations paths inside `run_new_question.py` as needed).*
 
 ---
 
@@ -224,16 +275,16 @@ Produces timestamped solution steps synced to the audio narration.
 
 | Action              | Description                          | Visual Style     |
 |---------------------|--------------------------------------|------------------|
-| `highlight_question`| Title / main problem statement       | Gold text         |
-| `write`             | Solution step (math, explanation)    | White text, animated character-by-character |
-| `highlight_option`  | Final answer selection               | Green highlight   |
+| `underline_existing`| Underline existing coordinates/terms | Jittery underline beneath OCR text |
+| `write_equation`    | Write math equations progressive-wise| Black pen marker handwriting font |
+| `tick_answer`       | Select final correct option indicator| Diagonal slash crossing option indicator |
 
 **Output format** (`output/annotations.json`):
 ```json
 [
-  { "time": 0.0,  "action": "highlight_question", "text": "Find Distance Between Two Points" },
-  { "time": 15.7, "action": "write",              "text": "Step 1: Distance Formula\nd = \u221a((x\u2082\u2212x\u2081)\u00b2 + (y\u2082\u2212y\u2081)\u00b2)" },
-  { "time": 60.6, "action": "highlight_option",   "text": "Option C" }
+  { "time": 5.78, "action": "underline_existing", "target": "A (1, 2)" },
+  { "time": 15.0, "action": "write_equation",     "text": "d = √((x₂−x₁)² + (y₂−y₁)²)" },
+  { "time": 60.6, "action": "tick_answer",         "target": "C" }
 ]
 ```
 
@@ -242,36 +293,15 @@ Produces timestamped solution steps synced to the audio narration.
 Composites the final annotated video using **Pillow** (drawing) and **MoviePy** (encoding).
 
 **Canvas layout:**
-```
-┌──────────────────────────┐
-│                          │
-│    Original question     │
-│    image (from OCR)      │
-│                          │
-├──────────────────────────┤  ← divider line
-│                          │
-│    Workspace area        │
-│    (420px, dark bg)      │
-│    - Animated solution   │
-│      steps appear here   │
-│    - Pen cursor glow     │
-│                          │
-└──────────────────────────┘
-```
+All annotations are drawn directly on the original question image (resolution remains 1280x720). No bottom workspace panel or slide presentation is added, ensuring a natural board solving layout.
 
-**Animation features:**
-- **Character-by-character text reveal** at 14 chars/sec (simulates handwriting)
-- **Glowing pen cursor** follows the writing position
-- **Question highlight** — semi-transparent yellow overlay on the question region
-- **Option highlight** — green overlay + checkmark on the correct answer
-- **Fade in/out** — 0.6s transitions at start and end
-
-**Color scheme:**
-- Title text: Gold `(255, 215, 0)`
-- Step labels: Soft blue `(120, 180, 255)`
-- Body text: Off-white `(240, 240, 240)`
-- Answer text: Green `(80, 255, 130)`
-- Workspace background: Dark blue-grey `(22, 22, 34)`
+**Whiteboard drawing features:**
+- **Handwriting Simulation**: Uses Windows default handwriting-style fonts (like `Ink Free` or `Segoe Print`) to draw all math equations and annotations.
+- **Word-wise Progressive Reveal**: Reveals mathematical equations progressively token-by-token (word/symbol-wise) to simulate natural handwritten speed.
+- **Proportional Underlining**: Computes the coordinates of targets dynamically and draws hand-drawn underlines exactly below coordinates (e.g. `A (1, 2)`).
+- **Diagonal Option Slash**: Ticks the correct option letter indicator by drawing a hand-drawn diagonal slash crossing cleanly inside the option text box (e.g. `(C)`).
+- **No Glow/Cursors**: Disables glows, colors, or highlighted headers; uses clean black ink marker style `(0, 0, 0)` for all drawing steps.
+- **Radical & Subscript Box Fix**: Dynamically draws the square root (`√`) radical sign using smooth continuous lines, and maps subscripts (`₂`, `₁`) and superscripts to smaller, shifted standard digits to avoid empty rectangle boxes in handwriting fonts on Windows.
 
 **Output:** 24 FPS MP4 with synced audio (libx264 + AAC)
 
