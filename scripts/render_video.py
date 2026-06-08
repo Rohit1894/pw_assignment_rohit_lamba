@@ -1,376 +1,637 @@
 #!/usr/bin/env python3
 """
-Render the final annotated video with writing animation.
+Render the final annotated video with teacher-like actions.
 
-Approach:
-  1. Load the question image and extend the canvas downward to create a
-     dedicated "solution workspace" (dark area below the question).
-  2. Pre-compute an animation schedule: each annotation gets a writing window
-     where its text appears character-by-character.
-  3. Use a single VideoClip(make_frame) that renders every frame dynamically,
-     drawing partially-revealed text, a glowing pen cursor, and highlights.
-  4. Cache static frames (when no writing is active) to avoid redundant rendering.
-  5. Add fade-in/fade-out and compose with audio.
-
-Annotations PERSIST after they appear — they do not fade out.
-The correct option gets a green highlight rectangle drawn around it.
-The question text area gets a semi-transparent yellow highlight.
+NEW APPROACH:
+  - Render DIRECTLY on the question image (no separate workspace below).
+  - Support semantic teacher actions: underline_existing, write_equation, draw_arrow, tick_answer.
+  - Use handwriting-style strokes for drawing with slight randomized jitter.
+  - Write equations in the largest empty space of the image.
+  - Animate underlines, arrows, and tick/diagonal line slashes progressively.
+  - Sync equation-writing durations to the audio narration.
+  - Reveal written equations token/word-by-word at a natural writing speed.
+  - Draw a diagonal slash line crossing through the correct option indicator (e.g. (C)).
+  - Use premium Windows handwriting font (Ink Free / Segoe Print).
+  - Render square roots dynamically using hand-drawn lines to avoid missing font glyph boxes.
 """
 
 import json
 import os
 import sys
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
-from moviepy import VideoClip, AudioFileClip, CompositeVideoClip, vfx
-
+from PIL import Image, ImageDraw, ImageFont
+from moviepy import VideoClip, AudioFileClip, vfx
+import math
+import random
+import re
 
 # ── Colour palette ──────────────────────────────────────────────────────────
-
-WORKSPACE_BG = (22, 22, 34)                    # dark blue-grey
-TITLE_COLOR = (255, 215, 0)                     # gold
-STEP_LABEL_COLOR = (120, 180, 255)              # soft blue
-TEXT_COLOR = (240, 240, 240)                     # off-white
-ANSWER_COLOR = (80, 255, 130)                    # green
-HIGHLIGHT_RECT_COLOR = (80, 255, 130)            # green border
-QUESTION_HIGHLIGHT_COLOR = (255, 255, 80, 45)   # semi-transparent yellow
-CORRECT_HIGHLIGHT_COLOR = (80, 255, 130, 50)     # semi-transparent green
-PEN_COLOR = (255, 200, 60)                       # warm yellow glow
-PEN_GLOW_COLOR = (255, 220, 100, 120)            # outer glow
-
-WORKSPACE_HEIGHT = 420                           # pixels added below the question
-CHARS_PER_SEC = 14                               # writing speed
-FADE_DURATION = 0.6                              # seconds for video fade in/out
+PEN_COLOR = (0, 0, 0)                             # black pen style
+PEN_WIDTH = 3                                     # marker width
 
 
-# ── Font helpers ────────────────────────────────────────────────────────────
-
-def _find_font(family="body", size=30):
-    """Locate a handwriting-style TrueType font on the system."""
+# ── Font helper ─────────────────────────────────────────────────────────────
+def _find_font(family="body", size=26):
+    """Locate a handwriting-style or standard TrueType font on the system."""
     if family == "title":
         candidates = [
-            # macOS handwriting / chalk fonts
-            "/System/Library/Fonts/Supplemental/Chalkduster.ttf",
-            "/Library/Fonts/Chalkduster.ttf",
-            "/System/Library/Fonts/Supplemental/Noteworthy.ttc",
-            # Linux
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-            "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
-            # Windows
+            "C:/Windows/Fonts/Inkfree.ttf",
+            "C:/Windows/Fonts/segoeprb.ttf",
+            "C:/Windows/Fonts/segoescb.ttf",
             "C:/Windows/Fonts/comicbd.ttf",
             "C:/Windows/Fonts/arialbd.ttf",
+            "/System/Library/Fonts/Supplemental/ChalkboardSE.ttc",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         ]
     else:  # body / handwriting
         candidates = [
-            # macOS
-            "/System/Library/Fonts/Supplemental/ChalkboardSE.ttc",
-            "/Library/Fonts/ChalkboardSE.ttc",
-            "/System/Library/Fonts/Supplemental/Noteworthy.ttc",
-            "/System/Library/Fonts/Supplemental/Chalkduster.ttf",
-            # Linux
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-            "/usr/share/fonts/TTF/DejaVuSans.ttf",
-            # Windows
+            "C:/Windows/Fonts/Inkfree.ttf",
+            "C:/Windows/Fonts/segoepr.ttf",
+            "C:/Windows/Fonts/segoesc.ttf",
             "C:/Windows/Fonts/comic.ttf",
             "C:/Windows/Fonts/arial.ttf",
+            "/System/Library/Fonts/Supplemental/ChalkboardSE.ttc",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         ]
 
     for path in candidates:
         if os.path.exists(path):
             try:
-                return ImageFont.truetype(path, size)
+                # Inkfree requires slightly larger size to match same visual weight
+                font_size = size + 4 if "Inkfree.ttf" in path else size
+                return ImageFont.truetype(path, font_size)
             except Exception:
                 continue
     return ImageFont.load_default(size=size)
 
 
-# ── Animation schedule ──────────────────────────────────────────────────────
-
-def _build_schedule(annotations, total_duration):
+# ── Tokenizer for math equations (Word-wise reveal) ────────────────────────
+def split_into_math_tokens(text):
     """
-    Pre-compute writing windows for each annotation.
+    Split math equation into logical tokens (words, symbols, operators).
+    Groups letters/numbers and subscripts together, separating math operators.
+    """
+    token_pattern = r'[A-Za-z0-9₀₁₂₃₄₅₆₇₈₉⁰¹²³⁴⁵⁶⁷⁸⁹]+|\s+|[^\w\s]'
+    return re.findall(token_pattern, text)
 
-    Each annotation gets:
-      - write_start: when characters begin appearing
-      - write_end:   when the last character is revealed
-      - total_chars: length of the text
 
-    Simultaneous annotations are sequenced so they don't overlap.
+# ── Proportional substring bounds estimator ───────────────────────────────
+def get_substring_bounds(elem, target_substring):
+    """
+    Estimate the bounding box of a substring inside an OCRElement
+    proproportionally to character indices.
+    """
+    text = elem.text
+    # Find start index of target_substring in text (case-insensitive)
+    start_idx = text.lower().find(target_substring.lower())
+    if start_idx == -1:
+        return elem.x1, elem.y1, elem.x2, elem.y2
+        
+    end_idx = start_idx + len(target_substring)
+    L = len(text)
+    
+    # Proportional estimation of x coordinates
+    sub_x1 = elem.x1 + int((elem.x2 - elem.x1) * (start_idx / L))
+    sub_x2 = elem.x1 + int((elem.x2 - elem.x1) * (end_idx / L))
+    
+    # y coordinates remain the same
+    return sub_x1, elem.y1, sub_x2, elem.y2
+
+
+# ── Handwriting-style drawing ───────────────────────────────────────────────
+def _draw_handwritten_line(draw, x1, y1, x2, y2, width=PEN_WIDTH, color=PEN_COLOR):
+    """Draw a slightly jittery line to simulate handwriting."""
+    dx = x2 - x1
+    dy = y2 - y1
+    dist = math.sqrt(dx**2 + dy**2)
+    
+    # Determine number of steps
+    steps = max(int(dist / 4), 1)
+    
+    for i in range(steps + 1):
+        t = i / steps
+        px = x1 + dx * t
+        py = y1 + dy * t
+        
+        # Add slight jitter
+        px += random.uniform(-0.6, 0.6)
+        py += random.uniform(-0.6, 0.6)
+        
+        r = width / 2
+        draw.ellipse([px - r, py - r, px + r, py + r], fill=color)
+
+
+def _draw_progressive_underline(draw, x1, y1, x2, y2, progress, width=PEN_WIDTH, color=PEN_COLOR):
+    """Draw underline progressively."""
+    end_x = x1 + (x2 - x1) * progress
+    _draw_handwritten_line(draw, x1, y1, end_x, y2, width, color)
+
+
+def _draw_progressive_circle(draw, cx, cy, radius, progress, width=PEN_WIDTH, color=PEN_COLOR):
+    """Draw circle progressively (from 0 to 360 degrees)."""
+    steps = max(int(progress * 60), 2)
+    angles = np.linspace(0, 2 * np.pi * progress, steps)
+    for i in range(len(angles) - 1):
+        x1 = cx + radius * math.cos(angles[i])
+        y1 = cy + radius * math.sin(angles[i])
+        x2 = cx + radius * math.cos(angles[i+1])
+        y2 = cy + radius * math.sin(angles[i+1])
+        _draw_handwritten_line(draw, x1, y1, x2, y2, width, color)
+
+
+def _draw_progressive_arrow(draw, x1, y1, x2, y2, progress, width=PEN_WIDTH, color=PEN_COLOR):
+    """Draw arrow shaft and head progressively."""
+    end_x = x1 + (x2 - x1) * progress
+    end_y = y1 + (y2 - y1) * progress
+    _draw_handwritten_line(draw, x1, y1, end_x, end_y, width, color)
+    
+    if progress > 0.8:
+        # Draw arrowhead pointing towards (x2, y2)
+        dx = x2 - x1
+        dy = y2 - y1
+        length = math.sqrt(dx**2 + dy**2)
+        if length > 0:
+            dx /= length
+            dy /= length
+            
+            # Size of arrowhead
+            arrow_len = 12
+            arrow_width = 6
+            
+            # Back along shaft
+            bx = end_x - dx * arrow_len
+            by = end_y - dy * arrow_len
+            
+            # Left and right points
+            p1x = bx + dy * arrow_width
+            p1y = by - dx * arrow_width
+            p2x = bx - dy * arrow_width
+            p2y = by + dx * arrow_width
+            
+            _draw_handwritten_line(draw, end_x, end_y, p1x, p1y, width, color)
+            _draw_handwritten_line(draw, end_x, end_y, p2x, p2y, width, color)
+
+
+def _draw_progressive_diagonal_slash(draw, x1, y1, x2, y2, progress, width=PEN_WIDTH, color=PEN_COLOR):
+    """Draw a diagonal slash line progressively to cross out/mark the option."""
+    end_x = x1 + (x2 - x1) * progress
+    end_y = y1 + (y2 - y1) * progress
+    _draw_handwritten_line(draw, x1, y1, end_x, end_y, width, color)
+
+
+def draw_custom_text(draw, x, y, text, font, color):
+    """Draw text character-by-character, mapping subscripts/superscripts/minus signs."""
+    curr_x = x
+    try:
+        font_path = getattr(font, "path", None)
+        if font_path and os.path.exists(font_path):
+            sub_font = ImageFont.truetype(font_path, max(10, int(font.size * 0.65)))
+        else:
+            sub_font = font
+    except Exception:
+        sub_font = font
+
+    SUPERSCRIPTS_MAP = {
+        '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4',
+        '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9'
+    }
+    
+    for char in text:
+        char_to_draw = char
+        curr_font = font
+        curr_y = y
+        
+        if char == '−': # Unicode minus
+            char_to_draw = '-'
+        elif '₀' <= char <= '₉':
+            char_to_draw = str(ord(char) - 0x2080)
+            curr_font = sub_font
+            curr_y = y + int(font.size * 0.25)
+        elif char in SUPERSCRIPTS_MAP:
+            char_to_draw = SUPERSCRIPTS_MAP[char]
+            curr_font = sub_font
+            curr_y = y - int(font.size * 0.15)
+            
+        draw.text((curr_x, curr_y), char_to_draw, fill=color, font=curr_font)
+        curr_x += draw.textlength(char_to_draw, font=curr_font)
+        
+    return curr_x - x
+
+
+def get_custom_text_width(draw, text, font):
+    """Calculate the width of the text using custom sub-font/subscript mapping."""
+    curr_x = 0
+    try:
+        font_path = getattr(font, "path", None)
+        if font_path and os.path.exists(font_path):
+            sub_font = ImageFont.truetype(font_path, max(10, int(font.size * 0.65)))
+        else:
+            sub_font = font
+    except Exception:
+        sub_font = font
+
+    SUPERSCRIPTS_MAP = {
+        '⁰': '0', '¹': '1', '²': '2', '³': '3', '⁴': '4',
+        '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9'
+    }
+    
+    for char in text:
+        char_to_draw = char
+        curr_font = font
+        
+        if char == '−': # Unicode minus
+            char_to_draw = '-'
+        elif '₀' <= char <= '₉':
+            char_to_draw = str(ord(char) - 0x2080)
+            curr_font = sub_font
+        elif char in SUPERSCRIPTS_MAP:
+            char_to_draw = SUPERSCRIPTS_MAP[char]
+            curr_font = sub_font
+            
+        curr_x += draw.textlength(char_to_draw, font=curr_font)
+        
+    return curr_x
+
+
+def draw_math_equation_with_radicals(draw, x, y, text, font, color):
+    """
+    Draw a math equation, rendering square root '√' symbols as real
+    handwritten radical lines instead of drawing a missing font glyph box.
+    """
+    if "√" not in text:
+        draw_custom_text(draw, x, y, text, font, color)
+        return
+        
+    parts = text.split("√")
+    curr_x = x
+    
+    for idx, part in enumerate(parts):
+        if idx == 0:
+            # Plain text before the first radical
+            if part:
+                curr_x += draw_custom_text(draw, curr_x, y, part, font, color)
+        else:
+            # This part is inside a radical
+            # Find the parenthesis block if present
+            if part.startswith("("):
+                depth = 0
+                closing_idx = -1
+                for char_idx, char in enumerate(part):
+                    if char == "(":
+                        depth += 1
+                    elif char == ")":
+                        depth -= 1
+                        if depth == 0:
+                            closing_idx = char_idx
+                            break
+                if closing_idx != -1:
+                    inside = part[1:closing_idx]
+                    rest = part[closing_idx+1:]
+                else:
+                    inside = part[1:]
+                    rest = ""
+            else:
+                # If no parenthesis, take digits/letters as inside, rest as rest
+                match = re.match(r'^[0-9]+', part)
+                if match:
+                    inside = match.group(0)
+                    rest = part[len(inside):]
+                else:
+                    inside = part
+                    rest = ""
+                    
+            # Draw handwritten radical sign around the inside text
+            inside_w = get_custom_text_width(draw, inside, font) if inside else 0
+            
+            # Draw radical symbol:
+            # Tail starts at y + 15
+            r_width = 2
+            rx0 = curr_x
+            ry0 = y + 15
+            
+            rx1 = curr_x + 6
+            ry1 = y + 19
+            
+            rx2 = curr_x + 14
+            ry2 = y + 30
+            
+            rx3 = curr_x + 22
+            ry3 = y - 4
+            
+            rx4 = curr_x + 22 + int(inside_w) + 2
+            ry4 = y - 4
+            
+            # Draw the radical strokes
+            _draw_handwritten_line(draw, rx0, ry0, rx1, ry1, r_width, color)
+            _draw_handwritten_line(draw, rx1, ry1, rx2, ry2, r_width, color)
+            _draw_handwritten_line(draw, rx2, ry2, rx3, ry3, r_width, color)
+            _draw_handwritten_line(draw, rx3, ry3, rx4, ry4, r_width, color)
+            
+            # Draw inside text inside the radical (shifted right of the sign)
+            if inside:
+                draw_custom_text(draw, curr_x + 24, y, inside, font, color)
+                curr_x += 24 + inside_w + 6
+                
+            # Draw rest text
+            if rest:
+                curr_x += draw_custom_text(draw, curr_x, y, rest, font, color)
+
+
+# ── Animation schedule ──────────────────────────────────────────────────────
+def _build_schedule(annotations, total_duration, enriched_ocr, option_positions):
+    """
+    Pre-compute geometry parameters and layouts for all annotations.
+    Arranges written equations in the largest empty space region.
     """
     schedule = []
-    last_write_end = 0.0
-
-    for ann in annotations:
+    
+    ocr_index = enriched_ocr.get("index") if enriched_ocr else None
+    free_spaces = enriched_ocr.get("free_spaces", []) if enriched_ocr else []
+    
+    # Determine best empty space region
+    if free_spaces:
+        best_space = free_spaces[0]
+        rx1, ry1, rx2, ry2 = best_space["bounds"]
+        print(f"  Writing layout region selected: {best_space['position']} bounds: {best_space['bounds']}")
+    else:
+        rx1, ry1, rx2, ry2 = 680, 100, 1240, 680
+        print(f"  No free spaces detected. Using default right side fallback bounds: [{rx1}, {ry1}, {rx2}, {ry2}]")
+        
+    wx = rx1 + 25
+    wy = ry1 + 30
+    
+    temp_schedule = []
+    for i, ann in enumerate(annotations):
+        action = ann["action"]
         t = ann["time"]
-        text = ann.get("text", "")
-        n_chars = len(text) if text else 0
-        write_duration = n_chars / CHARS_PER_SEC if n_chars > 0 else 0.3
-
-        # If this annotation would start before the previous one finished
-        # writing, push it to start right after
-        write_start = max(t, last_write_end + 0.1)
-
-        # Don't let writing extend past the video
-        write_end = min(write_start + write_duration, total_duration - 0.1)
-
+        
         entry = {
             **ann,
-            "write_start": write_start,
-            "write_end": write_end,
-            "total_chars": n_chars,
+            "write_start": t,
         }
+        
+        if action == "circle_existing":
+            target = ann.get("target", "")
+            entry["circle_duration"] = 0.8
+            entry["write_end"] = t + 0.8
+            
+            if ocr_index:
+                matches = ocr_index.find_by_text(target, threshold=0.5)
+                if matches:
+                    elem = matches[0]
+                    sub_x1, sub_y1, sub_x2, sub_y2 = get_substring_bounds(elem, target)
+                    cx = (sub_x1 + sub_x2) // 2
+                    cy = (sub_y1 + sub_y2) // 2
+                    entry["circle_params"] = (cx, cy, (sub_x2 - sub_x1) // 2 + 8)
+                else:
+                    if "(1, 2)" in target or "1, 2" in target:
+                        entry["circle_params"] = (145, 91, 30)
+                    elif "(4, 6)" in target or "4, 6" in target:
+                        entry["circle_params"] = (255, 91, 30)
+            else:
+                entry["circle_params"] = (145, 91, 30)
+                
+        elif action == "underline_existing":
+            target = ann.get("target", "")
+            entry["underline_duration"] = 0.8
+            entry["write_end"] = t + 0.8
+            
+            if ocr_index:
+                matches = ocr_index.find_by_text(target, threshold=0.4)
+                if not matches:
+                    matches = ocr_index.find_by_text("distance", threshold=0.4)
+                    
+                if matches:
+                    elem = matches[0]
+                    sub_x1, sub_y1, sub_x2, sub_y2 = get_substring_bounds(elem, target)
+                    entry["underline_params"] = (sub_x1, sub_y2 + 4, sub_x2, sub_y2 + 4)
+                else:
+                    if "1, 2" in target or "(1, 2)" in target:
+                        entry["underline_params"] = (572, 117, 690, 117)
+                    elif "4, 6" in target or "(4, 6)" in target:
+                        entry["underline_params"] = (763, 117, 851, 117)
+                    else:
+                        entry["underline_params"] = (60, 117, 240, 117)
+            else:
+                if "1, 2" in target or "(1, 2)" in target:
+                    entry["underline_params"] = (572, 117, 690, 117)
+                elif "4, 6" in target or "(4, 6)" in target:
+                    entry["underline_params"] = (763, 117, 851, 117)
+                else:
+                    entry["underline_params"] = (60, 117, 240, 117)
+                    
+        elif action == "write_equation":
+            entry["write_pos"] = (wx, wy)
+            wy += 60
+            
+        elif action == "draw_arrow":
+            entry["arrow_duration"] = 0.6
+            entry["write_end"] = t + 0.6
+            
+        elif action == "tick_answer":
+            target = ann.get("target", "") or ann.get("option", "")
+            entry["tick_duration"] = 0.5
+            entry["write_end"] = t + 0.5
+            
+            opt_letter = target.replace("Option", "").strip().upper()
+            if opt_letter in option_positions:
+                bbox = option_positions[opt_letter]
+                xs = [p[0] for p in bbox]
+                ys = [p[1] for p in bbox]
+                ox1, oy1 = min(xs), min(ys)
+                ox2, oy2 = max(xs), max(ys)
+                
+                # Diagonal line crossing through the option indicator (e.g. (C))
+                # It starts slightly bottom-left and ends slightly top-right
+                x_start = ox1 - 6
+                y_start = oy2 + 6
+                x_end = ox1 + 45
+                y_end = oy1 - 6
+                entry["tick_params"] = (x_start, y_start, x_end, y_end)
+            else:
+                entry["tick_params"] = (18, 300, 69, 240)
+                
+        temp_schedule.append(entry)
+        
+    # Pass 2: Calculate duration stretch and arrow coordinates
+    for i, entry in enumerate(temp_schedule):
+        if entry["action"] == "write_equation":
+            t_curr = entry["time"]
+            t_next = total_duration - 1.0
+            
+            if i + 1 < len(temp_schedule):
+                t_next = temp_schedule[i + 1]["time"]
+                
+            # Stretch equation writing duration so it matches verbal explanation (max 10s)
+            segment_dur = t_next - t_curr
+            write_dur = max(0.8, min(10.0, segment_dur * 0.85))
+            entry["write_duration"] = write_dur
+            entry["write_end"] = t_curr + write_dur
+            
+        elif entry["action"] == "draw_arrow":
+            prev_eq = None
+            for j in range(i - 1, -1, -1):
+                if temp_schedule[j]["action"] == "write_equation":
+                    prev_eq = temp_schedule[j]
+                    break
+            
+            next_eq = None
+            for j in range(i + 1, len(temp_schedule)):
+                if temp_schedule[j]["action"] == "write_equation":
+                    next_eq = temp_schedule[j]
+                    break
+                    
+            if prev_eq and next_eq:
+                px, py = prev_eq["write_pos"]
+                nx, ny = next_eq["write_pos"]
+                entry["arrow_params"] = (px + 60, py + 35, nx + 60, ny - 12)
+            else:
+                entry["arrow_params"] = (wx + 60, wy - 80, wx + 60, wy - 30)
+                
         schedule.append(entry)
-        last_write_end = write_end
-
+        
     return schedule
 
 
 # ── Frame renderer ──────────────────────────────────────────────────────────
-
-def _chars_visible(ann, t):
-    """How many characters of this annotation's text are visible at time t."""
-    if t >= ann["write_end"]:
-        return ann["total_chars"]
-    if t < ann["write_start"]:
-        return 0
-    progress = (t - ann["write_start"]) / max(ann["write_end"] - ann["write_start"], 0.01)
-    return int(progress * ann["total_chars"])
-
-
-def _draw_pen_cursor(draw, x, y, font_size):
-    """Draw a glowing pen dot at the current writing position."""
-    r_outer = max(int(font_size * 0.3), 5)
-    r_inner = max(int(font_size * 0.15), 3)
-
-    # Outer glow
-    draw.ellipse(
-        [x - r_outer, y - r_outer, x + r_outer, y + r_outer],
-        fill=PEN_GLOW_COLOR,
-    )
-    # Inner dot
-    draw.ellipse(
-        [x - r_inner, y - r_inner, x + r_inner, y + r_inner],
-        fill=PEN_COLOR + (255,),
-    )
-
-
-def _draw_question_highlight(draw, question_bbox, canvas_w):
-    """Draw a semi-transparent yellow wash over the question region."""
-    if not question_bbox:
-        return
-    x1, y1, x2, y2 = question_bbox
-    # Add some padding
-    x1 = max(0, x1 - 8)
-    y1 = max(0, y1 - 8)
-    x2 = min(canvas_w, x2 + 8)
-    y2 = y2 + 8
-    draw.rectangle([x1, y1, x2, y2], fill=QUESTION_HIGHLIGHT_COLOR)
-
-
-def _draw_option_highlight(draw, option_positions, option_letter):
-    """Draw a green highlight rectangle around the correct option."""
-    if option_letter not in option_positions:
-        return
-    pts = option_positions[option_letter]
-    x1 = int(min(p[0] for p in pts)) - 8
-    y1 = int(min(p[1] for p in pts)) - 8
-    x2 = int(max(p[0] for p in pts)) + 8
-    y2 = int(max(p[1] for p in pts)) + 8
-
-    # Semi-transparent green fill
-    draw.rectangle([x1, y1, x2, y2], fill=CORRECT_HIGHLIGHT_COLOR)
-    # Solid green border
-    draw.rectangle([x1, y1, x2, y2], outline=HIGHLIGHT_RECT_COLOR, width=3)
-    # Checkmark
-    draw.text((x2 + 10, y1), "\u2714", fill=ANSWER_COLOR + (255,))
-
-
-def _render_frame_at(t, background, canvas_size, schedule, option_positions,
-                     question_bbox, fonts):
+def _render_frame_at(t, background, schedule, fonts):
     """
-    Render a single frame at time `t`.
-
-    Returns an (H, W, 3) numpy array.
+    Render a single frame at time t.
+    All actions with write_start <= t are drawn cumulatively.
     """
-    font_body, font_title, font_small = fonts
-    frame = Image.new("RGBA", canvas_size, WORKSPACE_BG + (255,))
-
-    # Paste the original question at the top
-    frame.paste(background.convert("RGBA"), (0, 0))
-
-    draw = ImageDraw.Draw(frame)
-    orig_h = background.size[1]
-    canvas_w = canvas_size[0]
-
-    # ── Question highlight (appears with first annotation) ───────────────
-    if schedule and t >= schedule[0]["write_start"] and question_bbox:
-        _draw_question_highlight(draw, question_bbox, canvas_w)
-
-    # ── Workspace divider line ───────────────────────────────────────────
-    draw.line(
-        [(20, orig_h + 5), (canvas_w - 20, orig_h + 5)],
-        fill=(60, 60, 90, 200), width=2,
-    )
-
-    # ── Annotations ──────────────────────────────────────────────────────
-    y_cursor = orig_h + 22
-    active_pen = None  # will hold (x, y) of pen if writing is happening
-
-    for ann in schedule:
-        n_visible = _chars_visible(ann, t)
-        if n_visible == 0:
+    font_body = fonts[0]
+    
+    # Create white canvas copy of question image
+    frame = Image.new("RGB", background.size, (255, 255, 255))
+    frame.paste(background, (0, 0))
+    
+    draw = ImageDraw.Draw(frame, "RGBA")
+    
+    # Render all actions up to time t
+    for action in schedule:
+        start = action["write_start"]
+        if t < start:
             continue
-
-        action = ann["action"]
-        full_text = ann.get("text", "")
-        partial_text = full_text[:n_visible]
-        is_writing = n_visible < ann["total_chars"]
-
-        if action == "highlight_question":
-            draw.text((30, y_cursor), partial_text,
-                      fill=TITLE_COLOR + (255,), font=font_title)
-            bbox = draw.textbbox((30, y_cursor), partial_text, font=font_title)
-            if not is_writing:
-                # Underline when fully written
-                draw.line(
-                    [(30, bbox[3] + 4), (bbox[2], bbox[3] + 4)],
-                    fill=TITLE_COLOR + (140,), width=2,
-                )
-            if is_writing:
-                active_pen = (bbox[2] + 2, (bbox[1] + bbox[3]) // 2)
-            y_cursor = bbox[3] + 18
-
-        elif action == "write":
-            draw.text((40, y_cursor), partial_text,
-                      fill=TEXT_COLOR + (255,), font=font_body)
-            bbox = draw.textbbox((40, y_cursor), partial_text, font=font_body)
-            if is_writing:
-                active_pen = (bbox[2] + 2, (bbox[1] + bbox[3]) // 2)
-            y_cursor = bbox[3] + 14
-
-        elif action == "highlight_option":
-            label = f"Answer: {partial_text}"
-            draw.text((40, y_cursor), label,
-                      fill=ANSWER_COLOR + (255,), font=font_title)
-            bbox = draw.textbbox((40, y_cursor), label, font=font_title)
-            if is_writing:
-                active_pen = (bbox[2] + 2, (bbox[1] + bbox[3]) // 2)
-            y_cursor = bbox[3] + 14
-
-            # Draw green highlight on the correct option in the image
-            if not is_writing:
-                option_letter = full_text.replace("Option ", "").strip().upper()
-                _draw_option_highlight(draw, option_positions, option_letter)
-
-        elif action == "highlight_region":
-            # Highlight a region of the question image (no text to write)
-            # The region info is embedded in the annotation
-            pass
-
-    # ── Pen cursor ───────────────────────────────────────────────────────
-    if active_pen:
-        _draw_pen_cursor(draw, active_pen[0], active_pen[1], 28)
-
-    return np.array(frame.convert("RGB"))
+            
+        action_type = action["action"]
+        end = action["write_end"]
+        duration = action.get(f"{action_type.split('_')[0]}_duration", 0.8)
+        
+        # Calculate progress [0.0, 1.0]
+        progress = 1.0 if t >= end else (t - start) / max(duration, 0.01)
+        progress = max(0.0, min(1.0, progress))
+        
+        if action_type == "circle_existing":
+            params = action.get("circle_params")
+            if params:
+                cx, cy, r = params
+                _draw_progressive_circle(draw, cx, cy, r, progress, PEN_WIDTH, PEN_COLOR)
+                
+        elif action_type == "underline_existing":
+            params = action.get("underline_params")
+            if params:
+                x1, y1, x2, y2 = params
+                _draw_progressive_underline(draw, x1, y1, x2, y2, progress, PEN_WIDTH, PEN_COLOR)
+                
+        elif action_type == "write_equation":
+            text = action.get("text", "")
+            wx, wy = action["write_pos"]
+            
+            # Math word-wise tokenized reveal
+            tokens = split_into_math_tokens(text)
+            n_tokens = len(tokens)
+            k = int(progress * n_tokens)
+            partial_text = "".join(tokens[:k])
+            
+            # Draw math equation with custom radical rendering to avoid missing glyph boxes
+            draw_math_equation_with_radicals(draw, wx, wy, partial_text, font_body, PEN_COLOR)
+            
+        elif action_type == "draw_arrow":
+            params = action.get("arrow_params")
+            if params:
+                x1, y1, x2, y2 = params
+                _draw_progressive_arrow(draw, x1, y1, x2, y2, progress, PEN_WIDTH, PEN_COLOR)
+                
+        elif action_type == "tick_answer":
+            params = action.get("tick_params")
+            if params:
+                x1, y1, x2, y2 = params
+                _draw_progressive_diagonal_slash(draw, x1, y1, x2, y2, progress, PEN_WIDTH, PEN_COLOR)
+                
+    return np.array(frame)
 
 
 # ── Video assembly ──────────────────────────────────────────────────────────
-
 def render_video(image_path, annotations_path, audio_path, output_path,
-                 option_positions=None, question_bbox=None):
+                 option_positions=None, question_bbox=None, enriched_ocr=None):
     """
-    Build the final annotated video with writing animation.
-
-    1. Extends the question image canvas with a workspace below.
-    2. Pre-computes an animation schedule for character-by-character writing.
-    3. Renders each frame dynamically using make_frame.
-    4. Adds audio, fade-in, and fade-out.
+    Build the final video with teacher actions drawn directly on the image background.
     """
     if option_positions is None:
         option_positions = {}
+    if enriched_ocr is None:
+        enriched_ocr = {}
 
-    # Load resources
+    # Load background question image
     background = Image.open(image_path).convert("RGB")
-    orig_w, orig_h = background.size
-    canvas_size = (orig_w, orig_h + WORKSPACE_HEIGHT)
-
+    
     with open(annotations_path, "r", encoding="utf-8") as f:
         annotations = json.load(f)
-    annotations.sort(key=lambda x: x["time"])
-
-    # Fonts
+        
+    # Fonts (Ink Free size 28 is perfect for natural handwriting)
     font_body = _find_font("body", 28)
-    font_title = _find_font("title", 32)
-    font_small = _find_font("body", 22)
-    fonts = (font_body, font_title, font_small)
+    fonts = (font_body,)
 
-    # Audio duration determines video length
+    # Audio details
     audio = AudioFileClip(audio_path)
     total_duration = audio.duration
 
-    # Build animation schedule
-    schedule = _build_schedule(annotations, total_duration)
+    # Precompute layout coordinates and schedule
+    schedule = _build_schedule(annotations, total_duration, enriched_ocr, option_positions)
 
-    print(f"  Animation schedule: {len(schedule)} annotations over {total_duration:.1f}s")
-    for s in schedule:
-        print(f"    [{s['write_start']:.1f}s-{s['write_end']:.1f}s] "
-              f"{s['action']}: {s['text'][:50]}...")
-
-    # ── Frame cache for static periods ───────────────────────────────────
-    # Between writing windows, the frame doesn't change — cache it.
-    frame_cache = {}
-    fps = 24
-
+    print(f"  Rendering {total_duration:.1f}s video at 24 fps...")
+    
+    # Frame cache key
     def _cache_key(t):
-        """
-        Determine which 'state' the video is in at time t.
-        If we're between writing windows, the display is static and
-        depends only on how many annotations are fully visible.
-        During writing, every frame is unique (return None = no cache).
-        """
         for ann in schedule:
             if ann["write_start"] <= t < ann["write_end"]:
-                return None  # actively writing — unique frame
-        # Static: key is the count of fully-visible annotations
-        n_visible = sum(1 for a in schedule if t >= a["write_end"])
-        return n_visible
-
+                return None  # active drawing
+        # static: return count of completed actions
+        return sum(1 for a in schedule if t >= a["write_end"])
+        
+    frame_cache = {}
+    
     def make_frame(t):
         key = _cache_key(t)
         if key is not None and key in frame_cache:
             return frame_cache[key]
-
-        frame = _render_frame_at(
-            t, background, canvas_size, schedule,
-            option_positions, question_bbox, fonts,
-        )
-
+            
+        frame = _render_frame_at(t, background, schedule, fonts)
         if key is not None:
             frame_cache[key] = frame
         return frame
 
-    # Build video clip
+    # Create video clip
     video = VideoClip(make_frame, duration=total_duration)
-    video = video.with_fps(fps)
+    video = video.with_fps(24)
 
-    # Add fade in and fade out
+    # Fade effect
     video = video.with_effects([
-        vfx.FadeIn(FADE_DURATION),
-        vfx.FadeOut(FADE_DURATION),
+        vfx.FadeIn(0.6),
+        vfx.FadeOut(0.6),
     ])
 
-    # Attach audio
+    # Combine with audio
     video = video.with_audio(audio)
 
-    print(f"  Rendering {total_duration:.1f}s video at {fps} fps...")
     video.write_videofile(
         output_path,
-        fps=fps,
+        fps=24,
         codec="libx264",
         audio_codec="aac",
         logger="bar",
     )
-    print(f"  Video saved -> {output_path}")
+    print(f"  Video rendering complete! Saved to {output_path}")
 
 
 if __name__ == "__main__":

@@ -63,7 +63,7 @@ def main():
 
     # ── Step 2: OCR ─────────────────────────────────────────────────────
     print("[2/4] Running OCR on question image...")
-    question_text, option_positions, question_bbox = extract_question_info(args.image)
+    question_text, option_positions, question_bbox, enriched_ocr = extract_question_info(args.image)
 
     # ── Step 3: Annotations ─────────────────────────────────────────────
     print("[3/4] Generating annotations...")
@@ -73,7 +73,7 @@ def main():
     print("[4/4] Rendering video...")
     render_video(
         args.image, args.annotations, args.audio,
-        args.output, option_positions, question_bbox,
+        args.output, option_positions, question_bbox, enriched_ocr,
     )
 
     print(f"\nDone! Video saved to: {os.path.abspath(args.output)}")

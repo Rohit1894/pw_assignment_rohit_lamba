@@ -1,37 +1,42 @@
 [
   {
-    "time": 0.0,
-    "action": "highlight_question",
-    "text": "Find Distance Between Two Points"
+    "time": 5.78,
+    "action": "underline_existing",
+    "target": "A (1, 2)"
   },
   {
-    "time": 15.72,
-    "action": "write",
-    "text": "Step 1: Distance Formula\nd = √((x₂−x₁)² + (y₂−y₁)²)"
+    "time": 7.34,
+    "action": "underline_existing",
+    "target": "(4, 6)"
   },
   {
-    "time": 30.96,
-    "action": "write",
-    "text": "Step 2: Substitute Values\nd = √((4−1)² + (6−2)²)"
+    "time": 15.0,
+    "action": "write_equation",
+    "text": "d = √((x2-x1)² + (y2-y1)²)"
   },
   {
-    "time": 41.64,
-    "action": "write",
-    "text": "Step 3: Simplify\nd = √(3² + 4²)"
+    "time": 31.5,
+    "action": "write_equation",
+    "text": "d = √((4-1)² + (6-2)²)"
   },
   {
-    "time": 49.28,
-    "action": "write",
-    "text": "Step 4: Calculate\nd = √(9 + 16) = √25"
+    "time": 42.0,
+    "action": "write_equation",
+    "text": "d = √(3² + 4²)"
   },
   {
-    "time": 58.6,
-    "action": "write",
-    "text": "Step 5: Result\nd = 5 units"
+    "time": 47.5,
+    "action": "write_equation",
+    "text": "d = √(9 + 16) = √25"
+  },
+  {
+    "time": 58.0,
+    "action": "write_equation",
+    "text": "d = 5"
   },
   {
     "time": 60.6,
-    "action": "highlight_option",
-    "text": "Option C"
+    "action": "tick_answer",
+    "target": "C"
   }
 ]

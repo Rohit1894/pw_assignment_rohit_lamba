@@ -4,21 +4,28 @@
 import easyocr
 import json
 import sys
+from PIL import Image
+from ocr_utils import enrich_ocr_data
 
 
 def extract_question_info(image_path):
     """
-    Extract text content, option bounding boxes, and question region from a
-    question image.
+    Extract text content, option bounding boxes, question region, and enriched OCR data.
 
     Returns:
-        tuple: (full_text, option_positions, question_bbox)
+        tuple: (full_text, option_positions, question_bbox, enriched_ocr)
             - full_text: All OCR text concatenated
             - option_positions: Dict mapping option letters to bounding boxes
               e.g. {"A": [[x1,y1], [x2,y1], [x2,y2], [x1,y2]], ...}
             - question_bbox: (x1, y1, x2, y2) bounding box covering the
               question text region (everything above the options), or None
+            - enriched_ocr: Enriched structured OCR data dict
     """
+    # Load image for dimensions
+    img = Image.open(image_path)
+    image_width, image_height = img.size
+
+    # Run EasyOCR
     reader = easyocr.Reader(["en"], verbose=False)
     results = reader.readtext(image_path)
 
@@ -31,7 +38,9 @@ def extract_question_info(image_path):
         text_lower = text.lower().strip()
         for opt in ["a", "b", "c", "d"]:
             if f"({opt})" in text_lower:
-                option_positions[opt.upper()] = bbox
+                # Convert coordinate lists to standard Python ints for JSON serialization
+                converted_bbox = [[int(coord) for coord in pt] for pt in bbox]
+                option_positions[opt.upper()] = converted_bbox
                 # Track the top-y of option regions
                 option_y_positions.append(min(p[1] for p in bbox))
                 break
@@ -61,18 +70,22 @@ def extract_question_info(image_path):
             int(q_y_max),
         )
 
+    # Enrich OCR data with types, index, and free space regions
+    enriched_ocr = enrich_ocr_data(results, image_width, image_height, question_bbox)
+
     print(f"  OCR extracted {len(results)} text regions")
     if option_positions:
         print(f"  Found options: {list(option_positions.keys())}")
     if question_bbox:
         print(f"  Question region: {question_bbox}")
+    print(f"  Detected {len(enriched_ocr['free_spaces'])} free space regions")
 
-    return full_text, option_positions, question_bbox
+    return full_text, option_positions, question_bbox, enriched_ocr
 
 
 if __name__ == "__main__":
     image = sys.argv[1] if len(sys.argv) > 1 else "input/question.png"
-    text, positions, q_bbox = extract_question_info(image)
+    text, positions, q_bbox, enriched = extract_question_info(image)
     print(f"\nQuestion text:\n{text}")
     print(f"\nOption positions:\n{json.dumps(positions, indent=2)}")
     print(f"\nQuestion bounding box:\n{q_bbox}")
