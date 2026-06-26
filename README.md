@@ -16,6 +16,7 @@ An automated pipeline that transforms a **question image** and **audio narration
   - [Step 3 — Annotation Generation](#step-3--annotation-generation-generate_annotationspy)
   - [Step 4 — Video Rendering](#step-4--video-rendering-render_videopy)
 - [Bonus: Rename Questions Utility](#bonus-rename-questions-utility)
+- [Evaluation Harness](#evaluation-harness-scriptseval_corpuspy)
 - [Output Files](#output-files)
 - [Configuration](#configuration)
 - [Tech Stack](#tech-stack)
@@ -410,6 +411,69 @@ python scripts/rename_questions.py --zip input/questions.zip --excel input/metad
 ```
 
 **Handles edge cases:** column name variations, missing question numbers, duplicate names, macOS ZIP artifacts (`.DS_Store`, `__MACOSX/`), and mixed image formats.
+
+---
+
+## Evaluation Harness (`scripts/eval_corpus.py`)
+
+A manifest-driven evaluator for checking output quality across **multiple subjects
+and languages** (built for the English physics / chemistry / maths / biology push).
+It runs each question through the **real `main.py` pipeline**, scores the result on
+quality signals, writes a per-subject markdown report, and extracts sample frames
+for a quick visual check.
+
+### Signals scored
+
+| Signal | Meaning |
+|--------|---------|
+| `english_script` | Written text is Latin, not Devanagari (an English slide should produce English notes) |
+| `write_step` | Count of worked-solution lines (numerical questions should show their working) |
+| `frac` | Count of stacked fractions (`\frac{}{}`) used |
+| `answer_marked` | The correct option is marked |
+| `within_audio` / `not_frontloaded` | Actions stay inside the audio and spread across it (not bunched at the start) |
+
+### Usage
+
+```bash
+# Full pipeline — re-generates annotations per question (needs GEMINI_API_KEY)
+python scripts/eval_corpus.py
+
+# Render existing annotations only (no Gemini) — for iterating on rendering
+python scripts/eval_corpus.py --reuse
+
+# Custom manifest
+python scripts/eval_corpus.py my_manifest.json
+```
+
+Outputs: `output/eval_report.md` (per-subject table + PASS/WARN/MISSING verdicts) and
+three frames per question under `output/eval_frames/`.
+
+### Manifest
+
+On first run it auto-creates `output/eval_manifest.json`, seeded with the bundled
+English question plus **physics / chemistry / maths / biology placeholders**. Add
+your own English image + audio for each subject; entries whose files are missing are
+reported `MISSING`, so the manifest doubles as a **checklist of subjects still to
+cover**.
+
+```json
+[
+  {
+    "name": "phys_dimensional",
+    "subject": "physics",
+    "image": "input/eng_img_test.png",
+    "audio": "input/eng_audio_test.mp3",
+    "annotations": "output/eng_test_annotations.json"
+  }
+]
+```
+
+The `annotations` field is optional and only used by `--reuse` (to render a
+pre-existing annotation file without calling Gemini).
+
+> Use this to drive the **render → watch → fix** loop: run it, read the report, open
+> the frames, fix, repeat. It is the validation tool for the bundled-font,
+> subject-diversified-prompt, and stacked-fraction work.
 
 ---
 
