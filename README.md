@@ -135,25 +135,48 @@ Candidate blanks are validated by **size** (a real `(A)` token is small) and a *
 
 ```
 PW-Automated-Annotation-System/
-├── main.py                        # Entry point — runs the full 4-step pipeline
-├── requirements.txt               # Python dependencies
+├── main.py                          # Entry point — runs the full pipeline (OCR → annotate → sync → validate → render)
+├── run_new_question.py              # Render a new question reusing existing annotations (no Gemini)
+├── requirements.txt                 # Pinned Python dependencies
+│
 ├── scripts/
-│   ├── transcribe.py              # Step 1: Audio → timestamped transcript (Whisper)
-│   ├── ocr_question.py            # Step 2: Image → question text + option boxes (EasyOCR)
-│   ├── generate_annotations.py    # Step 3: Transcript → timed annotations (Gemini/regex)
-│   ├── render_video.py            # Step 4: Compose final annotated video (PIL + MoviePy)
-│   └── rename_questions.py        # Utility: bulk-rename images from ZIP + Excel metadata
+│   ├── transcribe.py                # Audio → timestamped transcript (Whisper)
+│   ├── ocr_question.py              # Image → question text + option/placeholder boxes (EasyOCR)
+│   ├── ocr_utils.py                 # OCR enrichment (element types, free-space regions)
+│   ├── generate_annotations_multimodal.py  # PRIMARY: audio + slide → Gemini → timed actions
+│   ├── generate_annotations.py      # Fallback: transcript (text) → Gemini annotations
+│   ├── align_timeline.py            # Re-time actions to the moment each phrase is spoken
+│   ├── timing_utils.py              # Timeline hygiene (order, spread, clamp to audio)
+│   ├── action_schema.py             # Canonical action vocabulary (one source of truth)
+│   ├── validate_annotations.py      # Pre-render validation gate (blocks bad/blank boards)
+│   ├── validate.py                  # Pipeline validation harness (reference Hindi set)
+│   ├── eval_corpus.py               # English multi-subject evaluation harness
+│   ├── rename_questions.py          # Utility: bulk-rename images from ZIP + Excel metadata
+│   ├── extract_pdf.py, render_pdf_pages.py, extract_*_frames.py   # dev/analysis helpers
+│   ├── render_video.py              # Thin façade — re-exports render_video()
+│   └── render/                      # Renderer package (split out of the old render_video.py)
+│       ├── constants.py             #   ink palette, action sets, sub/superscript maps
+│       ├── text_utils.py            #   script detection, grapheme split, wrap, math tokens
+│       ├── fonts.py                 #   font location (bundled Kalam first), glyph fallback, sizing
+│       ├── strokes.py               #   hand-drawn progressive pen primitives
+│       ├── text_render.py           #   per-glyph draw, hand-drawn √ + stacked \frac, crop-reveal
+│       ├── geometry.py              #   box overlap, slot finding, OCR/Gemini target-box resolution
+│       ├── placeholders.py          #   diagram/flowchart blank inference
+│       ├── matching.py              #   match-the-following connector routing
+│       ├── verdicts.py              #   ✓/✗ verdict placement
+│       ├── diagram.py               #   schematic diagram engine (flowchart / sequence / cycle)
+│       ├── schedule.py              #   builds the timed, positioned draw schedule (the "brain")
+│       └── frame.py                 #   renders each frame + assembles the video (render_video())
+│
 ├── fonts/
-│   └── Kalam-Regular.ttf          # Bundled handwriting font — Hindi (Devanagari) + English (Latin/math)
-├── input/
-│   ├── question.png               # Source question image (MCQ with options A–D)
-│   └── narration.mp3              # Teacher's audio explanation
-├── output/
-│   ├── transcript.json            # Whisper output with word-level timestamps
-│   ├── annotations.json           # Generated timestamped annotations
-│   └── final.mp4                  # Final rendered video
-├── task02_brief.md                # Writing style profile template (Task 02)
-└── task03_explanation.md          # Explanation of the rename utility (Task 03)
+│   ├── Kalam-Regular.ttf            # Bundled handwriting font — Hindi (Devanagari) + English (Latin/math)
+│   └── Kalam-Bold.ttf               # Bold variant (titles / diagram headings)
+│
+├── input/                           # Question images + narration audio (e.g. question.png, narration.mp3)
+├── output/                          # Generated artifacts: transcripts, annotations, videos, eval/validation reports
+│
+├── task02_brief.md                  # Writing style profile template (Task 02)
+└── task03_explanation.md            # Explanation of the rename utility (Task 03)
 ```
 
 ---
