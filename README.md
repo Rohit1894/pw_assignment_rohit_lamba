@@ -396,6 +396,13 @@ Produces timestamped solution steps synced to the audio narration.
 
 Composites the final annotated video using **Pillow** (drawing) and **MoviePy** (encoding).
 
+`render_video.py` is a thin **façade** that re-exports `render_video()`; the renderer
+itself lives in the **`scripts/render/` package** — focused modules for fonts, pen
+strokes, text/equation rendering, geometry, the per-question-type resolvers
+(`placeholders`, `matching`, `verdicts`, `diagram`), the scheduling "brain"
+(`schedule.py`), and the frame compositor + video assembly (`frame.py`). See
+[Project Structure](#project-structure) for the full module map.
+
 **Canvas layout:**
 All annotations are drawn directly on the original question image (resolution remains 1280x720). No bottom workspace panel or slide presentation is added, ensuring a natural board solving layout.
 
@@ -405,7 +412,7 @@ All annotations are drawn directly on the original question image (resolution re
 - **Proportional Underlining**: Computes the coordinates of targets dynamically and draws hand-drawn underlines exactly below coordinates (e.g. `A (1, 2)`).
 - **Diagonal Option Slash**: Ticks the correct option letter indicator by drawing a hand-drawn diagonal slash crossing cleanly inside the option text box (e.g. `(C)`).
 - **No Glow/Cursors**: Disables glows, colors, or highlighted headers; uses clean black ink marker style `(0, 0, 0)` for all drawing steps.
-- **Radical & Subscript Box Fix**: Dynamically draws the square root (`√`) radical sign using smooth continuous lines, and maps subscripts (`₂`, `₁`) and superscripts to smaller, shifted standard digits to avoid empty rectangle boxes in handwriting fonts on Windows.
+- **Radical, Fraction & Subscript Rendering** (`render/text_render.py`): Draws the square root (`√`) sign as smooth hand-drawn lines spanning its argument; **stacks fractions** written as `\frac{num}{den}` (numerator over a bar over denominator); and maps sub/superscripts (`₂`, `²`) to smaller, shifted glyphs — so equations render correctly in the handwriting style without empty-box glyphs. Greek letters and operators the handwriting font lacks fall back to a symbol font per glyph.
 
 **Output:** 24 FPS MP4 with synced audio (libx264 + AAC)
 
