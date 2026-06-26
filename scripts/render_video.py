@@ -24,68 +24,26 @@ from moviepy import VideoClip, AudioFileClip, vfx
 import math
 import random
 import re
-
-# ── Colour palette ──────────────────────────────────────────────────────────
-PEN_COLOR = (0, 0, 0)                             # black pen style
-PEN_WIDTH = 3                                     # marker width
-# Meaningful accent for the CORRECT answer (green), so the student instantly
-# reads green = correct vs the base ink (red) used for emphasis/wrong marks.
-ANSWER_INK = (22, 132, 64)
-# Distinct teal for matching-table connectors, so the linking strokes read as
-# "this pairs with that" rather than emphasis (red) or the answer (green).
-MATCH_INK = (13, 115, 122)
-
-
-# Actions that write new lines of the worked solution onto the board.
-WRITE_ACTIONS = ("write_equation", "write_text", "write_step")
-
-
-def _contains_devanagari(text):
-    """True if the text contains any Devanagari (Hindi) characters."""
-    return any("ऀ" <= ch <= "ॿ" for ch in (text or ""))
-
-
-# Cosmetic glyph normalisation applied to ALL scripts — these substitutions are
-# always safe and font-independent (fancy dashes/bullets → plain ASCII).
-_GLYPH_FIXUPS_COMMON = {
-    "•": "-", "·": "-", "—": "-", "–": "-",
-}
-# Arrows the Devanagari handwriting font (Kalam) lacks → would render as empty
-# boxes on the Hindi crop-reveal path (which draws one whole string in a single
-# font, with no per-glyph fallback). Map them to "=" ONLY for Devanagari text.
-# English/Latin text keeps the REAL arrow: its draw path now falls back to a
-# symbol font that can render it (see _resolve_glyph_font), so a note like
-# "force → acceleration" no longer turns into "force = acceleration".
-_GLYPH_FIXUPS_DEVANAGARI = {
-    "→": "=", "➝": "=", "⟶": "=", "⇒": "=", "↓": "=", "←": "=",
-}
-
-_MATH_CHARS_RE = re.compile(r"[=√^₀-₉⁰¹²³⁴⁵⁶⁷⁸⁹]|\bformula\b", re.IGNORECASE)
-
-
-def _sanitize_text(text):
-    """Replace glyphs missing from the handwriting font with safe equivalents.
-
-    The arrow→"=" substitution is scoped to Devanagari text only: the Hindi path
-    pre-renders a whole string in one font (Kalam) with no per-glyph fallback, so
-    an arrow there would be an empty box. English/Latin text is left intact
-    because its draw path falls back to a symbol font per missing glyph.
-    """
-    text = str(text or "")
-    for bad, good in _GLYPH_FIXUPS_COMMON.items():
-        text = text.replace(bad, good)
-    if _contains_devanagari(text):
-        for bad, good in _GLYPH_FIXUPS_DEVANAGARI.items():
-            text = text.replace(bad, good)
-    return text
-
-
-def _is_formula_like_text(text):
-    """True for equation/formula notes that should use the math writer."""
-    text = str(text or "")
-    if len(text.strip()) < 6:
-        return False
-    return bool(_MATH_CHARS_RE.search(text))
+# ── Leaf modules extracted in Step 1 of the render_video refactor ────────────
+# Behaviour-preserving: the SAME functions/constants, relocated into the render/
+# package and imported back so the rest of this module is unchanged.
+from render.constants import (
+    PEN_COLOR, PEN_WIDTH, ANSWER_INK, MATCH_INK, WRITE_ACTIONS,
+    _SUPERSCRIPT_MAP, _SUBSCRIPT_MAP,
+)
+from render.text_utils import (
+    _contains_devanagari, _sanitize_text, _is_formula_like_text,
+    split_grapheme_clusters, wrap_text_to_width, split_into_math_tokens,
+)
+from render.fonts import (
+    _find_hindi_font, _find_font, _font_has_glyph, _glyph_fallback_fonts,
+    _resolve_glyph_font, _sized_sub_font, _sized_variant, _note_font_size,
+)
+from render.strokes import (
+    _draw_handwritten_line, _draw_progressive_polyline, _draw_progressive_underline,
+    _draw_progressive_circle, _draw_progressive_arrow, _draw_progressive_diagonal_slash,
+    _draw_progressive_ellipse, _draw_progressive_cross,
+)
 
 
 def _is_workspace_write_action(ann):
@@ -94,248 +52,6 @@ def _is_workspace_write_action(ann):
     return action in WRITE_ACTIONS or (
         action == "write_note" and _is_formula_like_text(ann.get("text", ""))
     )
-
-
-# ── Font helper ─────────────────────────────────────────────────────────────
-def _find_hindi_font(size=30):
-    """
-    Locate a Devanagari-capable font for writing Hindi solution lines.
-
-    Prefers the bundled 'Kalam' handwriting font (keeps the hand-written
-    teacher feel), then falls back to Windows' Nirmala UI, then any system
-    Devanagari font. Hindi must be drawn as whole words/clusters (never
-    character-by-character) so that matras and conjuncts shape correctly.
-    """
-    here = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(here)
-    candidates = [
-        os.path.join(project_root, "fonts", "Kalam-Regular.ttf"),
-        os.path.join(here, "fonts", "Kalam-Regular.ttf"),
-        "C:/Windows/Fonts/Nirmala.ttc",
-        "C:/Windows/Fonts/Nirmala.ttf",
-        "C:/Windows/Fonts/mangal.ttf",
-        "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf",
-    ]
-    for path in candidates:
-        if os.path.exists(path):
-            try:
-                # Kalam is a touch small visually; bump it slightly.
-                font_size = size + 4 if "Kalam" in path else size
-                return ImageFont.truetype(path, font_size)
-            except Exception:
-                continue
-    return ImageFont.load_default(size=size)
-
-
-def split_grapheme_clusters(text):
-    """
-    Split text into grapheme clusters suitable for a progressive 'writing'
-    reveal of Devanagari (and plain Latin) text.
-
-    A cluster = a base character plus any combining marks that attach to it
-    (matras, anusvara, nukta, etc.). A virama (्) keeps the following
-    consonant in the same cluster so conjuncts are never split mid-stroke.
-    """
-    clusters = []
-    VIRAMA = "्"
-    for ch in text:
-        if not clusters:
-            clusters.append(ch)
-            continue
-        prev = clusters[-1][-1]
-        is_combining = "ऀ" <= ch <= "ः" or "ऺ" <= ch <= "ॏ" \
-            or "॑" <= ch <= "ॗ" or ch in ("़", "ॢ", "ॣ",
-                                                    "‌", "‍")
-        if is_combining or prev == VIRAMA:
-            clusters[-1] += ch
-        else:
-            clusters.append(ch)
-    return clusters
-
-
-def wrap_text_to_width(draw, text, font, max_width):
-    """Word-wrap `text` so each rendered line fits within `max_width` pixels."""
-    words = text.split(" ")
-    lines = []
-    current = ""
-    for word in words:
-        trial = word if not current else current + " " + word
-        if draw.textlength(trial, font=font) <= max_width or not current:
-            current = trial
-        else:
-            lines.append(current)
-            current = word
-    if current:
-        lines.append(current)
-    return lines or [text]
-
-
-# ── Font helper ─────────────────────────────────────────────────────────────
-def _find_font(family="body", size=26):
-    """Locate a handwriting-style or standard TrueType font on the system."""
-    if family == "title":
-        candidates = [
-            "C:/Windows/Fonts/Inkfree.ttf",
-            "C:/Windows/Fonts/segoeprb.ttf",
-            "C:/Windows/Fonts/segoescb.ttf",
-            "C:/Windows/Fonts/comicbd.ttf",
-            "C:/Windows/Fonts/arialbd.ttf",
-            "/System/Library/Fonts/Supplemental/ChalkboardSE.ttc",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        ]
-    else:  # body / handwriting
-        candidates = [
-            "C:/Windows/Fonts/Inkfree.ttf",
-            "C:/Windows/Fonts/segoepr.ttf",
-            "C:/Windows/Fonts/segoesc.ttf",
-            "C:/Windows/Fonts/comic.ttf",
-            "C:/Windows/Fonts/arial.ttf",
-            "/System/Library/Fonts/Supplemental/ChalkboardSE.ttc",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        ]
-
-    for path in candidates:
-        if os.path.exists(path):
-            try:
-                # Inkfree requires slightly larger size to match same visual weight
-                font_size = size + 4 if "Inkfree.ttf" in path else size
-                return ImageFont.truetype(path, font_size)
-            except Exception:
-                continue
-    return ImageFont.load_default(size=size)
-
-
-# ── Sub/superscript glyph maps ──────────────────────────────────────────────
-# Unicode sub/superscripts are mapped to a normal base character drawn smaller
-# and shifted, so they keep the handwriting look instead of relying on the font
-# actually owning the precomposed glyph. DIGITS, SIGNS and LETTERS are covered:
-# letters matter for science (e.g. the physics answer v = rᵃρᵇsᶜ, or eˣ, xᵢ).
-_SUPERSCRIPT_MAP = {
-    "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4",
-    "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9",
-    "⁺": "+", "⁻": "-", "⁼": "=", "⁽": "(", "⁾": ")",
-    "ᵃ": "a", "ᵇ": "b", "ᶜ": "c", "ᵈ": "d", "ᵉ": "e",
-    "ᶠ": "f", "ᵍ": "g", "ʰ": "h", "ⁱ": "i", "ʲ": "j",
-    "ᵏ": "k", "ˡ": "l", "ᵐ": "m", "ⁿ": "n", "ᵒ": "o",
-    "ᵖ": "p", "ʳ": "r", "ˢ": "s", "ᵗ": "t", "ᵘ": "u",
-    "ᵛ": "v", "ʷ": "w", "ˣ": "x", "ʸ": "y", "ᶻ": "z",
-}
-_SUBSCRIPT_MAP = {
-    "₀": "0", "₁": "1", "₂": "2", "₃": "3", "₄": "4",
-    "₅": "5", "₆": "6", "₇": "7", "₈": "8", "₉": "9",
-    "₊": "+", "₋": "-", "₌": "=", "₍": "(", "₎": ")",
-    "ₐ": "a", "ₑ": "e", "ₕ": "h", "ᵢ": "i", "ⱼ": "j",
-    "ₖ": "k", "ₗ": "l", "ₘ": "m", "ₙ": "n", "ₒ": "o",
-    "ₚ": "p", "ᵣ": "r", "ₛ": "s", "ₜ": "t", "ᵤ": "u",
-    "ᵥ": "v", "ₓ": "x",
-}
-
-
-# ── Per-glyph font fallback ──────────────────────────────────────────────────
-# Handwriting fonts (Ink Free / Segoe Print) lack Greek letters, math operators
-# (∫ ∑ ≤ ≥ ≠ ± × ÷ ∞ ∂ ∝ √) and arrows, rendering them as empty boxes. When the
-# primary font is missing a glyph we draw THAT glyph from a broad-coverage symbol
-# font (Segoe UI Symbol, then Arial, then DejaVu on Linux) at the same size, so a
-# chemistry/physics/maths solution in English renders every symbol.
-_GLYPH_FALLBACK_PATHS = [
-    "C:/Windows/Fonts/seguisym.ttf",   # Segoe UI Symbol: Greek + math + arrows
-    "C:/Windows/Fonts/arial.ttf",      # Greek + Latin-1 math basics
-    "C:/Windows/Fonts/cambria.ttc",    # Cambria Math: full math coverage
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-]
-_GLYPH_FALLBACK_CACHE = {}      # size -> [loaded fallback fonts]
-_GLYPH_PRESENCE_CACHE = {}      # (font_path, size, char) -> bool
-
-
-def _font_has_glyph(font, ch):
-    """True if `font` has a real (non-notdef) glyph for `ch`.
-
-    Dependency-free: compares the glyph's 1-bit mask against the font's notdef
-    mask (the same technique as check_notdef.py). A blank mask for a visible
-    character, or a mask identical to notdef, means the glyph is missing.
-    """
-    if not ch or ch.isspace():
-        return True
-    key = (getattr(font, "path", None), getattr(font, "size", None), ch)
-    cached = _GLYPH_PRESENCE_CACHE.get(key)
-    if cached is not None:
-        return cached
-    present = True
-    try:
-        mask = font.getmask(ch, mode="1")
-        if mask.getbbox() is None:
-            present = False
-        else:
-            notdef = font.getmask("", mode="1")  # PUA: almost always notdef
-            if mask.size == notdef.size and bytes(mask) == bytes(notdef):
-                present = False
-    except Exception:
-        present = True
-    _GLYPH_PRESENCE_CACHE[key] = present
-    return present
-
-
-def _glyph_fallback_fonts(size):
-    """Load (once, cached) the fallback symbol fonts at `size`."""
-    fonts = _GLYPH_FALLBACK_CACHE.get(size)
-    if fonts is None:
-        fonts = []
-        for path in _GLYPH_FALLBACK_PATHS:
-            if os.path.exists(path):
-                try:
-                    fonts.append(ImageFont.truetype(path, size))
-                except Exception:
-                    continue
-        _GLYPH_FALLBACK_CACHE[size] = fonts
-    return fonts
-
-
-def _resolve_glyph_font(ch, base_font):
-    """Return the font to draw `ch` with: the handwriting font if it owns the
-    glyph, otherwise the first fallback font that does (else the base font)."""
-    if _font_has_glyph(base_font, ch):
-        return base_font
-    size = int(getattr(base_font, "size", 26) or 26)
-    for fb in _glyph_fallback_fonts(size):
-        if _font_has_glyph(fb, ch):
-            return fb
-    return base_font
-
-
-def _sized_sub_font(font):
-    """0.65x variant of `font` for sub/superscript bases (cached in _FONT_CACHE)."""
-    path = getattr(font, "path", None)
-    size = max(10, int(getattr(font, "size", 26) * 0.65))
-    if not path or not os.path.exists(path):
-        return font
-    key = (path, size)
-    f = _FONT_CACHE.get(key)
-    if f is None:
-        try:
-            f = ImageFont.truetype(path, size)
-        except Exception:
-            f = font
-        _FONT_CACHE[key] = f
-    return f
-
-
-# ── Tokenizer for math equations (Word-wise reveal) ────────────────────────
-# Word class includes Greek (U+0370–03FF) and every sub/superscript char so they
-# are NOT dropped (the old class silently discarded ρ, ᵃ, etc.); the trailing
-# "|." catch-all guarantees no character is ever lost during tokenisation.
-_MATH_TOKEN_CHARS = "".join(_SUPERSCRIPT_MAP) + "".join(_SUBSCRIPT_MAP)
-_MATH_TOKEN_RE = re.compile(
-    "[A-Za-z0-9Ͱ-Ͽ" + _MATH_TOKEN_CHARS + r"]+|\s+|[^\w\s]|.",
-    re.UNICODE,
-)
-
-
-def split_into_math_tokens(text):
-    """
-    Split a math equation into logical tokens (words, symbols, operators).
-    Groups letters/numbers/Greek/sub-superscripts together, separating operators.
-    """
-    return _MATH_TOKEN_RE.findall(text or "")
 
 
 # ── Proportional substring bounds estimator ───────────────────────────────
@@ -359,129 +75,6 @@ def get_substring_bounds(elem, target_substring):
     
     # y coordinates remain the same
     return sub_x1, elem.y1, sub_x2, elem.y2
-
-
-# ── Handwriting-style drawing ───────────────────────────────────────────────
-def _draw_handwritten_line(draw, x1, y1, x2, y2, width=PEN_WIDTH, color=PEN_COLOR):
-    """
-    Draw a continuous, slightly jittery SOLID line to simulate handwriting.
-
-    Earlier this stamped spaced dots which read as a dotted/beaded line; we now
-    draw a connected polyline so underlines, slashes and arrows are solid.
-    """
-    dx = x2 - x1
-    dy = y2 - y1
-    dist = math.sqrt(dx**2 + dy**2)
-
-    # A point every ~6px is enough for a smooth solid stroke.
-    steps = max(int(dist / 6), 1)
-
-    points = []
-    for i in range(steps + 1):
-        t = i / steps
-        px = x1 + dx * t + random.uniform(-0.5, 0.5)
-        py = y1 + dy * t + random.uniform(-0.5, 0.5)
-        points.append((px, py))
-
-    if len(points) >= 2:
-        draw.line(points, fill=color, width=max(1, int(width)), joint="round")
-        # Round the end caps so the stroke looks like a marker tip.
-        r = width / 2
-        for (px, py) in (points[0], points[-1]):
-            draw.ellipse([px - r, py - r, px + r, py + r], fill=color)
-
-
-def _draw_progressive_polyline(draw, pts, progress, width=PEN_WIDTH, color=PEN_COLOR,
-                               end_dots=True):
-    """Draw a multi-segment (elbow) connector progressively along its arc length.
-
-    Used for matching-table connectors: a straight diagonal would slice through
-    the intervening cell text, so the line is an L/Z elbow routed through the
-    blank gutter between columns. The pen grows from the first point to the last
-    at constant speed regardless of how many bends the path has.
-    """
-    if not pts or len(pts) < 2:
-        return
-    seg_len = [math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1])
-               for i in range(len(pts) - 1)]
-    total = sum(seg_len) or 1.0
-    target = total * max(0.0, min(1.0, progress))
-    if end_dots:                                  # small anchor dot at the start cell
-        r = width / 2 + 1
-        draw.ellipse([pts[0][0] - r, pts[0][1] - r, pts[0][0] + r, pts[0][1] + r], fill=color)
-    run = 0.0
-    for i in range(len(pts) - 1):
-        if run >= target:
-            break
-        (x1, y1), (x2, y2) = pts[i], pts[i + 1]
-        if run + seg_len[i] <= target:
-            _draw_handwritten_line(draw, x1, y1, x2, y2, width, color)
-        else:                                     # partial segment = the growing tip
-            f = (target - run) / (seg_len[i] or 1.0)
-            _draw_handwritten_line(draw, x1, y1, x1 + (x2 - x1) * f, y1 + (y2 - y1) * f,
-                                   width, color)
-        run += seg_len[i]
-    if progress >= 0.999 and end_dots:            # landing dot on the target cell
-        r = width / 2 + 1
-        draw.ellipse([pts[-1][0] - r, pts[-1][1] - r, pts[-1][0] + r, pts[-1][1] + r], fill=color)
-
-
-def _draw_progressive_underline(draw, x1, y1, x2, y2, progress, width=PEN_WIDTH, color=PEN_COLOR):
-    """Draw underline progressively."""
-    end_x = x1 + (x2 - x1) * progress
-    _draw_handwritten_line(draw, x1, y1, end_x, y2, width, color)
-
-
-def _draw_progressive_circle(draw, cx, cy, radius, progress, width=PEN_WIDTH, color=PEN_COLOR):
-    """Draw circle progressively (from 0 to 360 degrees)."""
-    steps = max(int(progress * 60), 2)
-    angles = np.linspace(0, 2 * np.pi * progress, steps)
-    for i in range(len(angles) - 1):
-        x1 = cx + radius * math.cos(angles[i])
-        y1 = cy + radius * math.sin(angles[i])
-        x2 = cx + radius * math.cos(angles[i+1])
-        y2 = cy + radius * math.sin(angles[i+1])
-        _draw_handwritten_line(draw, x1, y1, x2, y2, width, color)
-
-
-def _draw_progressive_arrow(draw, x1, y1, x2, y2, progress, width=PEN_WIDTH, color=PEN_COLOR):
-    """Draw arrow shaft and head progressively."""
-    end_x = x1 + (x2 - x1) * progress
-    end_y = y1 + (y2 - y1) * progress
-    _draw_handwritten_line(draw, x1, y1, end_x, end_y, width, color)
-    
-    if progress > 0.8:
-        # Draw arrowhead pointing towards (x2, y2)
-        dx = x2 - x1
-        dy = y2 - y1
-        length = math.sqrt(dx**2 + dy**2)
-        if length > 0:
-            dx /= length
-            dy /= length
-            
-            # Size of arrowhead
-            arrow_len = 12
-            arrow_width = 6
-            
-            # Back along shaft
-            bx = end_x - dx * arrow_len
-            by = end_y - dy * arrow_len
-            
-            # Left and right points
-            p1x = bx + dy * arrow_width
-            p1y = by - dx * arrow_width
-            p2x = bx - dy * arrow_width
-            p2y = by + dx * arrow_width
-            
-            _draw_handwritten_line(draw, end_x, end_y, p1x, p1y, width, color)
-            _draw_handwritten_line(draw, end_x, end_y, p2x, p2y, width, color)
-
-
-def _draw_progressive_diagonal_slash(draw, x1, y1, x2, y2, progress, width=PEN_WIDTH, color=PEN_COLOR):
-    """Draw a diagonal slash line progressively to cross out/mark the option."""
-    end_x = x1 + (x2 - x1) * progress
-    end_y = y1 + (y2 - y1) * progress
-    _draw_handwritten_line(draw, x1, y1, end_x, end_y, width, color)
 
 
 def draw_custom_text(draw, x, y, text, font, color):
@@ -630,36 +223,6 @@ ANSWER_ACTIONS = ("tick_answer", "mark_answer")
 VERDICT_ACTIONS = ("verdict_mark",)
 # Every action that writes text and is revealed with the crop wipe.
 TEXT_ACTIONS = ("annotate_word", "write_note", "fill_placeholder")
-
-# Sized-font cache so dynamic font sizing doesn't reload TTFs every call.
-_FONT_CACHE = {}
-
-
-def _sized_variant(font, size):
-    """Return `font` re-instantiated at `size` (clamped, cached)."""
-    size = int(max(15, min(46, size)))
-    path = getattr(font, "path", None)
-    key = (path, size)
-    if key in _FONT_CACHE:
-        return _FONT_CACHE[key]
-    try:
-        variant = ImageFont.truetype(path, size) if path else font
-    except Exception:
-        variant = font
-    _FONT_CACHE[key] = variant
-    return variant
-
-
-def _note_font_size(text, base):
-    """Pick a font size for a note based on its length (dynamic sizing)."""
-    n = len(text)
-    if n <= 8:
-        return base + 6
-    if n <= 16:
-        return base + 2
-    if n <= 28:
-        return base - 2
-    return base - 6
 
 
 def _boxes_overlap(box, occupied, pad=10):
@@ -887,37 +450,6 @@ def _paste_text_reveal(frame, action, progress):
             crop = layer.crop((0, 0, show, h))
             frame.paste(crop, (int(wx), int(wy + i * line_h)), crop)
         reveal_px -= w
-
-
-# ── Hand-drawn primitives: ellipse + cross-out ──────────────────────────────
-def _draw_progressive_ellipse(draw, cx, cy, rx, ry, progress, width=PEN_WIDTH,
-                              color=PEN_COLOR):
-    """Draw a hand-drawn ellipse, swept progressively, with radius noise."""
-    sweep = 2 * math.pi * 1.08  # slight over-closure, like a real circling stroke
-    end = progress * sweep
-    n = max(6, int(progress * 72))
-    start_ang = -math.pi * 0.55
-    pts = []
-    for i in range(n + 1):
-        a = start_ang + end * (i / n)
-        jr = 1.0 + random.uniform(-0.045, 0.045)
-        pts.append((cx + rx * jr * math.cos(a), cy + ry * jr * math.sin(a)))
-    if len(pts) >= 2:
-        draw.line(pts, fill=color, width=max(1, int(width)), joint="round")
-
-
-def _draw_progressive_cross(draw, x1, y1, x2, y2, progress, width=PEN_WIDTH,
-                            color=PEN_COLOR):
-    """Cross out a box: a slash first, then a second stroke forms an X."""
-    # First diagonal: bottom-left -> top-right over [0, 0.6].
-    p1 = min(1.0, progress / 0.6)
-    _draw_handwritten_line(draw, x1, y2, x1 + (x2 - x1) * p1, y2 - (y2 - y1) * p1,
-                           width, color)
-    # Second diagonal: top-left -> bottom-right over [0.6, 1.0].
-    if progress > 0.6:
-        p2 = (progress - 0.6) / 0.4
-        _draw_handwritten_line(draw, x1, y1, x1 + (x2 - x1) * p2, y1 + (y2 - y1) * p2,
-                               width, color)
 
 
 # ── Target box resolution (OCR text → box, else Gemini coords) ──────────────
