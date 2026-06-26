@@ -42,3 +42,10 @@ build/
 # Environment variables
 .env
 .env.local
+
+# Heavy media & generated artifacts — excluded from version control so the repo
+# stays a lean source snapshot. These are large (input/ ~328MB of sample media,
+# output/ ~149MB of generated videos/frames/caches) and not needed to revert code.
+# Remove a line here (or use `git add -f`) if you want to track specific assets.
+input/
+output/

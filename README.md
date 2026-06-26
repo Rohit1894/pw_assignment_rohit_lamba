@@ -50,6 +50,84 @@ input/question.png + input/narration.mp3
 
 The system reads a static question image and a teacher's audio explanation, then automatically produces a polished instructional video where solution steps appear on screen in sync with the narration — simulating a handwritten solution.
 
+The pipeline is **language- and subject-aware**: it works for an English math problem and equally for a **Hindi (Devanagari)** biology question, automatically detecting the script and writing the solution in the same language.
+
+---
+
+## Multilingual (Hindi) Support
+
+The pipeline handles questions whose **audio narration, question image, and written solution are all in Hindi**, in addition to English.
+
+**Run a Hindi question:**
+
+```bash
+python main.py \
+  --image input/hindi_question.png \
+  --audio input/hindi_narration.mp3 \
+  --output output/hindi_final.mp4 \
+  --transcript output/hindi_transcript.json \
+  --annotations output/hindi_annotations.json \
+  --whisper-model medium \
+  --language hi \
+  --ink red
+```
+
+**What changes per stage (and what stays automatic):**
+
+| Stage | Hindi handling |
+|-------|----------------|
+| **OCR (runs first)** | EasyOCR always runs with `["hi", "en"]`, so it reads Devanagari **and** the Latin tokens that appear in Hindi science MCQs (e.g. `hCG`, `HPL`). Runs before transcription so the question's terms can prime Whisper. |
+| **Transcribe** | Pass `--language hi` so Whisper emits **Devanagari Hindi** (not romanised/translated). The OCR'd question terms are passed as Whisper's `initial_prompt` to sharpen domain words and timing. Use `--whisper-model medium` (or `large`) — `base`/`small` are weak on Hindi. |
+| **Annotations** | Language is auto-detected. The Gemini prompt is **audio-driven**: it only emits an action for something the teacher actually says, timestamped for sync, and writes meanings/notes in the question's script. Subject-agnostic (biology, math, …). |
+| **Rendering** | Devanagari is drawn with the bundled **Kalam** handwriting font (falls back to Windows **Nirmala UI**), revealed **grapheme-cluster by cluster** so matras/conjuncts stay correct. The math `√`/subscript path is used only for non-Hindi equations. |
+
+### Annotation engine: multimodal Gemini (default) vs Whisper
+
+By default the pipeline uses **`--engine gemini`**: it sends the **audio + slide image directly to Gemini** in one multimodal call, and Gemini returns a **timestamped action timeline** synced to the narration. This avoids Whisper's tendency to drop/garble Hindi around intro music or silence, and lets the model *see* the slide (e.g. locate flowchart placeholders).
+
+`--engine whisper` (or automatic fallback if Gemini is unavailable) uses the local Whisper transcription + text-only annotation path.
+
+### Teacher-style annotation actions
+
+Mirroring a real teacher's board, the model emits these timed actions (red ink by default, configurable via `--ink`):
+
+| Action | What it does |
+|--------|--------------|
+| `underline_existing` | Solid underline under a key word/phrase in the question. |
+| `circle_word` | **Hand-drawn ellipse** (with parametric noise) around a key term or diagram placeholder. Located via OCR text or Gemini `box_2d` coordinates. |
+| `cross_out_word` | **Hand-drawn slash → X** over an incorrect term in an option. |
+| `annotate_word` | Writes a word's **meaning beside/below it** in-place (e.g. सगर्भता → गर्भावस्था); if cramped, placed in free space with a **connecting arrow**. |
+| `fill_placeholder` | Writes the answer term **next to a diagram blank** (A)/(B)/(C)/(D) with a connector arrow — for flowchart/figure questions. Blank positions are resolved **generically**, in priority order (see below). No per-question hardcoding. |
+| `draw_arrow` | Hand-drawn arrow connecting two targets. |
+| `write_note` | A short **working note in empty space** (e.g. `hCG = कॉर्पस ल्यूटियम`), including an optional multi-line **summary block** (`A = … / B = …`). |
+| `mark_answer` | Solid diagonal line marking the correct option. |
+
+Notes are placed by a **scatter engine** that keeps them in blank areas (never overlapping the printed question/options/diagram), with **dynamic font sizing**. Hindi text is **pre-rendered once and revealed with a left-to-right crop wipe**, so matras/conjuncts always shape correctly. Layout is seeded, so re-runs are stable but look hand-placed.
+
+**Diagram blank resolution (generic, no hardcoding).** A flowchart blank's position is found by trying, in order:
+1. **OCR full + band re-OCR** — locate `(A)`/`(B)`/… tokens; an upscaled crop of the diagram band recovers tiny labels the full-image pass misses.
+2. **Targeted gap recovery** — if the detected labels form a sequence with a hole (e.g. `A, B, D` ⇒ `C` missing), re-OCR a tight, heavily-upscaled strip around each detected column and accept that *specific* letter even at low confidence (knowing which letter to look for makes a low-confidence hit safe). This recovered `(C)` at its true node in the Q7 flowchart.
+3. **Geometric inference** — if a referenced blank is still unplaced, fit `cy(index)` through the found blanks (rows are monotonic), predict the column and **snap it to the nearest detected column** (robust to zig-zag layouts). Used only when the row-fit is clean.
+4. **Gemini `box_2d`** — the model's vision coordinate, used last because it can hallucinate a blank far from the figure.
+
+Candidate blanks are validated by **size** (a real `(A)` token is small) and a **watermark guard** (ignores the corner PW logo), so table labels/logos don't masquerade as fillable blanks.
+
+**Timeline hygiene (engine-agnostic).** Whatever produced the actions, the final timeline is ordered, **stretched to fill the audio if the model front-loaded everything** (preserving intended order/pacing), minimally spaced, and **clamped so nothing is scheduled past the narration**.
+
+**Generic figure understanding.** Diagram handling is not limited to lettered `(A)/(B)` flowchart blanks. The model can target **any part of any figure** (a labelled biology diagram, a non-lettered blank line/box, a `?`) by giving a `box_2d`, and the renderer **snaps that approximate coordinate onto the printed label it overlaps** (Gemini's vision boxes are roughly right but off by tens of pixels) — so circles, underlines, cross-outs and connector arrows land precisely on the real label. Genuine blanks (empty space) don't snap, so fills still write *beside* the blank. No diagrams are generated; the existing on-slide figure is annotated in place.
+
+**Audio sync.** Action timing is re-derived from when things are actually said: Gemini returns a timestamped transcript of the whole audio (it transcribes Hindi far better than Whisper on noisy lecture audio), each action's `spoken_cue` is fuzzy-matched into that transcript, and the timeline is re-sorted to match — so annotations appear exactly when the teacher speaks them, not bunched at the start. Broken model timestamps are sanitised (kept in order, regridded), and a sanity gate falls back to even spacing if the transcript is too poor. Whisper word-timestamps are used as a fallback sync source. Disable with `--no-sync`.
+
+**Worked numerical solutions.** For `numerical` questions the teacher's working is written out step-by-step (`write_step`): given values → formula → substitution → result, each line revealed in sync as it is spoken. The lines **stack as a tidy column in the largest empty region** and the font/spacing **auto-size (vertically and horizontally) so the whole solution fits** on screen. Steps may mix Latin/maths and Hindi (rendered via the same crop-reveal as notes).
+
+**OCR-error tolerance.** Resolving an action's `target` to a box no longer needs an exact OCR match: text is normalised (case, punctuation, Devanagari danda, zero-width joiners) and scored by a blend of substring containment, token recall, and character ratio — so a small misread (e.g. `लीडिग` vs `लीडिंग`) still matches. A target whose printed phrase was **split across several OCR boxes** is recovered by merging consecutive same-line boxes. If nothing clears the bar, resolution returns nothing (the renderer skips rather than misplaces) and Gemini's `box_2d` (snapped) is the fallback.
+
+**Question-type awareness.** The model first classifies the question (`mcq`, `assertion_reason`, `matching`, `flowchart_fill`, `diagram_label`, `numerical`) and annotates accordingly. Notably, **"match the following" questions draw real connector lines** (`match_pair`) from each List-I item to its correct List-II item as the teacher states the pairing — not just generic notes — then mark the option that lists all correct pairs.
+
+**Reliability.** Gemini responses are **cached** by a hash of (audio + image + prompt) — identical inputs reuse the result with no API call (`--no-cache`/`--refresh-cache` to control). Transient errors retry with **exponential backoff**; quota errors fall through to the next model, then to the Whisper + rule-based path.
+
+> **Note on fonts:** Hindi must be drawn as whole words/clusters — never one codepoint at a time — or matras and conjuncts break. The renderer handles this automatically. `fonts/Kalam-Regular.ttf` is committed with the project; no extra install is needed.
+
 ---
 
 ## Project Structure
@@ -64,6 +142,8 @@ PW-Automated-Annotation-System/
 │   ├── generate_annotations.py    # Step 3: Transcript → timed annotations (Gemini/regex)
 │   ├── render_video.py            # Step 4: Compose final annotated video (PIL + MoviePy)
 │   └── rename_questions.py        # Utility: bulk-rename images from ZIP + Excel metadata
+├── fonts/
+│   └── Kalam-Regular.ttf          # Bundled Devanagari handwriting font (Hindi)
 ├── input/
 │   ├── question.png               # Source question image (MCQ with options A–D)
 │   └── narration.mp3              # Teacher's audio explanation
@@ -268,15 +348,15 @@ Produces timestamped solution steps synced to the audio narration.
 
 | Mode | When Used | How It Works |
 |------|-----------|--------------|
-| **Gemini API** (primary) | `GEMINI_API_KEY` or `GOOGLE_API_KEY` is set | Sends transcript + question text to Gemini 2.0 Flash; generates intelligent step-by-step annotations for any question |
+| **Gemini API** (primary) | `GEMINI_API_KEY` or `GOOGLE_API_KEY` is set | Sends transcript + question text to Gemini (tries `gemini-2.5-flash`, then `gemini-2.0-flash`, then `gemini-2.5-flash-lite` so a quota-exhausted model falls through to the next); generates intelligent step-by-step annotations for any question, in the question's language |
 | **Regex fallback** | No API key available | Matches keywords in transcript against hardcoded patterns (limited to specific problem types) |
 
 **Annotation types:**
 
 | Action              | Description                          | Visual Style     |
 |---------------------|--------------------------------------|------------------|
-| `underline_existing`| Underline existing coordinates/terms | Jittery underline beneath OCR text |
-| `write_equation`    | Write math equations progressive-wise| Black pen marker handwriting font |
+| `underline_existing`| Underline existing terms/coordinates | Jittery underline beneath OCR text |
+| `write_equation` / `write_text` | Write a solution line (equation or, for Hindi/conceptual questions, a sentence) progressively | Black pen marker handwriting font (Kalam for Hindi) |
 | `tick_answer`       | Select final correct option indicator| Diagonal slash crossing option indicator |
 
 **Output format** (`output/annotations.json`):
@@ -369,7 +449,8 @@ python scripts/rename_questions.py --zip input/questions.zip --excel input/metad
 |-----------|------|
 | **OpenAI Whisper** | Speech-to-text with word-level timestamps |
 | **EasyOCR** | Extract text and positions from question images |
-| **Google Gemini 2.0 Flash** | LLM-powered annotation generation |
+| **Google Gemini (2.5 / 2.0 Flash)** | LLM-powered, language-aware annotation generation |
+| **Kalam (bundled TTF)** | Devanagari handwriting font for rendering Hindi solutions |
 | **Pillow (PIL)** | Frame rendering, text drawing, image composition |
 | **MoviePy** | Video assembly, audio sync, MP4 encoding |
 | **OpenCV** | Image processing support |
