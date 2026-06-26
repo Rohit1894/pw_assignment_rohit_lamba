@@ -49,3 +49,18 @@ _SUBSCRIPT_MAP = {
     "ₚ": "p", "ᵣ": "r", "ₛ": "s", "ₜ": "t", "ᵤ": "u",
     "ᵥ": "v", "ₓ": "x",
 }
+
+
+# Free-form working-note actions: written in scattered empty space, optionally
+# anchored to a question word (with a connecting arrow).
+NOTE_ACTIONS = ("annotate_word", "write_note")
+
+# Actions that mark the correct option with a solid line/slash.
+ANSWER_ACTIONS = ("tick_answer", "mark_answer")
+
+# Per-statement verdict (green tick = true / red cross = false) beside a statement,
+# for assertion-reason and "how many statements are correct" questions.
+VERDICT_ACTIONS = ("verdict_mark",)
+
+# Every action that writes text and is revealed with the crop wipe.
+TEXT_ACTIONS = ("annotate_word", "write_note", "fill_placeholder")
