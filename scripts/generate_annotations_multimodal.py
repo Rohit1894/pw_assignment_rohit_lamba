@@ -34,7 +34,7 @@ _AUDIO_MIME = {
 _IMAGE_MIME = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
 
 # Bump when the prompt/schema changes so stale cached responses are not reused.
-PROMPT_VERSION = "v20-multisubject"
+PROMPT_VERSION = "v21-multisubject"
 _CACHE_DIR = os.path.join("output", ".mm_cache")
 
 
@@ -164,7 +164,7 @@ ACTION TYPES:
   {{"time": <float>, "action": "draw_diagram", "spoken_cue": "<phrase being said>",
     "diagram": {{
        "type": "flowchart" | "sequence" | "cycle",
-       "title": "<short Hindi title>",
+       "title": "<short title in the SLIDE's own language (English or Hindi)>",
        "layout": "vertical" | "horizontal" | "snake",
        "nodes": [{{"id": "n1", "label": "हाइपोथैलेमस"}},
                  {{"id": "n2", "label": "पीयूष ग्रंथि", "highlight": true}}],
@@ -198,12 +198,16 @@ DIAGRAMS (a schematic is useful for many questions, but must not clutter tables)
   source question itself explicitly asks for a written rule.
 - Always build the diagram from labelled nodes + arrows (a schematic) — never describe or
   request an image. Prefer ONE clear schematic over many scattered marks.
-- Choose the diagram that teaches THIS question's answer:
-    * Hormone/endocrine axis -> vertical flowchart; add a "feedback" edge if the
-      teacher mentions feedback/regulation.
+- Choose the diagram that teaches THIS question's answer — this works for EVERY
+  subject (physics / chemistry / maths / biology), built from labelled boxes +
+  arrows (NOT pictures of apparatus, structures or circuits):
+    * Hormone/endocrine axis (biology) -> vertical flowchart; add a "feedback" edge
+      if the teacher mentions feedback/regulation.
     * "Correct order / sequence / arrange" -> a sequence of nodes IN THE CORRECT
       ORDER (this is the visual answer).
-    * Process / pathway / cause-effect -> a flowchart.
+    * Process / pathway / cause-effect -> a flowchart. E.g. a physics
+      cause→effect or derivation chain, a chemistry reaction sequence
+      (reactant → intermediate → product), or an ordered list of steps.
 - Place the draw_diagram action at the moment the teacher BEGINS explaining that
   flow (it builds node-by-node across that spoken segment), and give it a
   spoken_cue. Use at most one or two diagrams per question.
@@ -217,7 +221,8 @@ Set a top-level "question_type" field to ONE of: "mcq", "assertion_reason",
   cross out a wrong option only AT THE MOMENT the teacher rejects it (never before,
   and never an option the teacher does not actually rule out). Then mark_answer the
   correct option, and add exactly ONE short write_note stating the RULE/REASON the
-  answer is correct (a few words, e.g. "जोना पेलुसिडा = ग्लाइकोप्रोटीन, कोशिका-रहित").
+  answer is correct (a few words, in the slide's language — e.g. Hindi
+  "जोना पेलुसिडा = ग्लाइकोप्रोटीन, कोशिका-रहित", or English "only (C) conserves momentum").
 - "assertion_reason": use `verdict_mark` to judge the Assertion (A) and the Reason
   (R) each true/false as the teacher evaluates them (✓/✗ in the margin). Do NOT
   cross out the options — the answer follows from the two verdicts. Add exactly ONE
@@ -291,9 +296,11 @@ WORKSPACE NOTES (make the board CLEAR, not crowded — this is MANDATORY):
   factual notes in the empty board space that capture the KEY facts the teacher
   states — the things a student should jot: hormone names, the site/where, the
   cause, and especially the RULE or REASON behind the answer.
-- Each note MUST be a CONCISE factual anchor of only a few words — NOT a sentence.
-  GOOD: "LH शिखर - 14वाँ दिन", "वृषण में शुक्राणु बनते हैं", "अंत: मूत्रमार्ग से बाहर",
-        "FSH - सर्टोली कोशिका".
+- Each note MUST be a CONCISE factual anchor of only a few words — NOT a sentence —
+  written in the SLIDE's own language (English notes for an English slide).
+  GOOD (Hindi biology): "LH शिखर - 14वाँ दिन", "FSH - सर्टोली कोशिका".
+  GOOD (English, any subject): "KE = ½mv²", "frequency ∝ 1/√(LC)",
+        "SN1 → racemic product", "F ∝ 1/r²", "discriminant < 0 → no real roots".
   BAD: a full explanatory sentence, or vague filler.
 - Use `annotate_word` with a `target` when the fact explains a SPECIFIC slide term
   (an arrow will connect the note to that word); use `write_note` for a standalone
