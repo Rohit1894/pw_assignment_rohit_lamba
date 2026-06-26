@@ -34,7 +34,7 @@ _AUDIO_MIME = {
 _IMAGE_MIME = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
 
 # Bump when the prompt/schema changes so stale cached responses are not reused.
-PROMPT_VERSION = "v21-multisubject"
+PROMPT_VERSION = "v22-multisubject-frac"
 _CACHE_DIR = os.path.join("output", ".mm_cache")
 
 
@@ -267,6 +267,12 @@ English or Hindi — handle every subject the same way; NEVER assume biology):
   letters, operators and sub/superscripts correctly, so do NOT spell them out as
   words. Write "x²", "v = u + at", "T⁻¹", "λ = h/p", "½mv²", "F ∝ 1/r²", "θ",
   "√", "∫", "Σ", "≤", "≠", "±", "→" directly.
+- For a STACKED fraction (numerator over a bar over a denominator) — e.g. a
+  quadratic formula or a rate expression — write it as LaTeX
+  \\frac{{numerator}}{{denominator}} (or \\dfrac); the renderer stacks it. E.g.
+  "\\frac{{-b ± √(b²-4ac)}}{{2a}}", "\\frac{{dy}}{{dx}}", "\\frac{{1}}{{2}}mv²".
+  Keep simple inline ratios and units as a plain slash (m/s, 1/3, h/p) — those
+  stay inline, do NOT \\frac them.
 - Physics / maths numerical example (write_step lines, English):
     {{"action":"write_step","text":"[v] = T⁻¹, [ρ] = ML⁻³, [s] = MT⁻²"}}
     {{"action":"write_step","text":"compare powers of M, L, T"}}

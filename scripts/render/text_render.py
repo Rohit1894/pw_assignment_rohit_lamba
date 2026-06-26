@@ -66,18 +66,86 @@ def get_custom_text_width(draw, text, font):
     return curr_x
 
 
+# Start of a stacked-fraction command: \frac{ , \dfrac{ or \tfrac{
+_FRAC_RE = re.compile(r"\\(?:d|t)?frac\s*\{")
+
+
+def _read_braced(s, pos):
+    """`s[pos]` is '{'. Return (inner_text, index just AFTER the matching '}')."""
+    depth = 0
+    for i in range(pos, len(s)):
+        if s[i] == "{":
+            depth += 1
+        elif s[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return s[pos + 1:i], i + 1
+    return s[pos + 1:], len(s)            # unbalanced -> take the rest
+
+
+def _draw_fraction(draw, x, y, num, den, font, color):
+    """Draw `num` over `den` with a horizontal bar (a stacked fraction), centred
+    vertically on the line so it sits amid neighbouring inline text. Numerator and
+    denominator are drawn inline (sub/superscripts + glyph fallback; a √ inside a
+    fraction renders as a symbol glyph, not the hand-drawn spanning radical).
+    Returns the right-edge x."""
+    pad = 8
+    num_w = get_custom_text_width(draw, num, font)
+    den_w = get_custom_text_width(draw, den, font)
+    w = max(num_w, den_w)
+    fs = font.size
+    bar_y = y + int(fs * 0.55)                        # near the inline text's centre
+    num_y = bar_y - int(fs * 0.85)
+    den_y = bar_y + int(fs * 0.08)
+    draw_custom_text(draw, x + pad / 2 + (w - num_w) / 2, num_y, num, font, color)
+    draw_custom_text(draw, x + pad / 2 + (w - den_w) / 2, den_y, den, font, color)
+    draw.line([(x, bar_y), (x + w + pad, bar_y)], fill=color, width=2)
+    return x + w + pad + 4
+
+
 def draw_math_equation_with_radicals(draw, x, y, text, font, color):
+    """Draw a math equation: hand-drawn '√' radicals, smaller shifted sub/super-
+    scripts, and STACKED fractions written as ``\\frac{num}{den}`` (also
+    ``\\dfrac`` / ``\\tfrac``). Returns the total drawn width.
+
+    Text with NO ``\\frac`` is rendered by the unchanged inline path
+    (``_draw_radicals_inline``), so every existing equation renders exactly as
+    before; only ``\\frac`` spans use the new stacking.
     """
-    Draw a math equation, rendering square root '√' symbols as real
-    handwritten radical lines instead of drawing a missing font glyph box.
-    """
+    if "\\frac" not in text:
+        return _draw_radicals_inline(draw, x, y, text, font, color)
+    curr_x, i, seg_start, n = x, 0, 0, len(text)
+    while i < n:
+        m = _FRAC_RE.match(text, i)
+        if m:
+            num, j = _read_braced(text, m.end() - 1)
+            if j < n and text[j] == "{":
+                den, k = _read_braced(text, j)
+                inline = text[seg_start:i]      # flush text before the fraction
+                if inline:
+                    curr_x += _draw_radicals_inline(draw, curr_x, y, inline, font, color)
+                curr_x = _draw_fraction(draw, curr_x, y, num, den, font, color)
+                i = seg_start = k
+                continue
+            # malformed \frac (no second group) -> leave it in the inline run
+        i += 1
+    inline = text[seg_start:]
+    if inline:
+        curr_x += _draw_radicals_inline(draw, curr_x, y, inline, font, color)
+    return curr_x - x
+
+
+def _draw_radicals_inline(draw, x, y, text, font, color):
+    """Inline equation drawing — the original draw_math_equation_with_radicals
+    body, now RETURNING its drawn width (the drawing itself is unchanged). Handles
+    hand-drawn '√' radicals + sub/superscripts; does NOT handle \\frac (the caller
+    splits those out)."""
     if "√" not in text:
-        draw_custom_text(draw, x, y, text, font, color)
-        return
-        
+        return draw_custom_text(draw, x, y, text, font, color)
+
     parts = text.split("√")
     curr_x = x
-    
+
     for idx, part in enumerate(parts):
         if idx == 0:
             # Plain text before the first radical
@@ -145,6 +213,7 @@ def draw_math_equation_with_radicals(draw, x, y, text, font, color):
             # Draw rest text
             if rest:
                 curr_x += draw_custom_text(draw, curr_x, y, rest, font, color)
+    return curr_x - x
 
 
 def _measure_block(draw, text, font, max_w):
