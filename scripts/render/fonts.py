@@ -5,6 +5,23 @@ import os
 
 from PIL import ImageFont
 
+# Bundled handwriting fonts live in <project_root>/fonts/. fonts.py sits at
+# scripts/render/, so the project root is three directories up. Using the
+# bundled Kalam font for BOTH Devanagari and Latin/math makes the rendered text
+# identical on Windows, Linux and macOS — system handwriting fonts (Ink Free,
+# Segoe Print) are Windows-only and silently degrade to a non-handwriting font
+# elsewhere, so English annotations would otherwise look different per-OS.
+_FONTS_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "fonts",
+)
+
+
+def _bundled(name):
+    """Absolute path to a bundled font in fonts/, or None if it is missing."""
+    path = os.path.join(_FONTS_DIR, name)
+    return path if os.path.exists(path) else None
+
 
 # ── Font helper ─────────────────────────────────────────────────────────────
 def _find_hindi_font(size=30):
@@ -16,18 +33,15 @@ def _find_hindi_font(size=30):
     Devanagari font. Hindi must be drawn as whole words/clusters (never
     character-by-character) so that matras and conjuncts shape correctly.
     """
-    here = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(os.path.dirname(here))
     candidates = [
-        os.path.join(project_root, "fonts", "Kalam-Regular.ttf"),
-        os.path.join(here, "fonts", "Kalam-Regular.ttf"),
+        _bundled("Kalam-Regular.ttf"),
         "C:/Windows/Fonts/Nirmala.ttc",
         "C:/Windows/Fonts/Nirmala.ttf",
         "C:/Windows/Fonts/mangal.ttf",
         "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf",
     ]
     for path in candidates:
-        if os.path.exists(path):
+        if path and os.path.exists(path):
             try:
                 # Kalam is a touch small visually; bump it slightly.
                 font_size = size + 4 if "Kalam" in path else size
@@ -39,9 +53,17 @@ def _find_hindi_font(size=30):
 
 # ── Font helper ─────────────────────────────────────────────────────────────
 def _find_font(family="body", size=26):
-    """Locate a handwriting-style or standard TrueType font on the system."""
+    """Locate a handwriting-style TrueType font for Latin/math text.
+
+    Prefers the bundled Kalam handwriting font so English/maths annotations look
+    hand-written and IDENTICAL on every OS (Kalam has full Latin + digit coverage
+    and matches the Hindi text). Falls back to system handwriting fonts (Windows
+    Ink Free / Segoe Print, macOS Chalkboard) and finally DejaVu only if the
+    bundled font is somehow unavailable.
+    """
     if family == "title":
         candidates = [
+            _bundled("Kalam-Bold.ttf"),
             "C:/Windows/Fonts/Inkfree.ttf",
             "C:/Windows/Fonts/segoeprb.ttf",
             "C:/Windows/Fonts/segoescb.ttf",
@@ -52,6 +74,7 @@ def _find_font(family="body", size=26):
         ]
     else:  # body / handwriting
         candidates = [
+            _bundled("Kalam-Regular.ttf"),
             "C:/Windows/Fonts/Inkfree.ttf",
             "C:/Windows/Fonts/segoepr.ttf",
             "C:/Windows/Fonts/segoesc.ttf",
@@ -62,10 +85,10 @@ def _find_font(family="body", size=26):
         ]
 
     for path in candidates:
-        if os.path.exists(path):
+        if path and os.path.exists(path):
             try:
-                # Inkfree requires slightly larger size to match same visual weight
-                font_size = size + 4 if "Inkfree.ttf" in path else size
+                # Kalam and Ink Free render a touch small; bump to match weight.
+                font_size = size + 4 if ("Kalam" in path or "Inkfree.ttf" in path) else size
                 return ImageFont.truetype(path, font_size)
             except Exception:
                 continue

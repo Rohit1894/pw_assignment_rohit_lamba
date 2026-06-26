@@ -143,7 +143,7 @@ PW-Automated-Annotation-System/
 │   ├── render_video.py            # Step 4: Compose final annotated video (PIL + MoviePy)
 │   └── rename_questions.py        # Utility: bulk-rename images from ZIP + Excel metadata
 ├── fonts/
-│   └── Kalam-Regular.ttf          # Bundled Devanagari handwriting font (Hindi)
+│   └── Kalam-Regular.ttf          # Bundled handwriting font — Hindi (Devanagari) + English (Latin/math)
 ├── input/
 │   ├── question.png               # Source question image (MCQ with options A–D)
 │   └── narration.mp3              # Teacher's audio explanation
@@ -376,7 +376,7 @@ Composites the final annotated video using **Pillow** (drawing) and **MoviePy** 
 All annotations are drawn directly on the original question image (resolution remains 1280x720). No bottom workspace panel or slide presentation is added, ensuring a natural board solving layout.
 
 **Whiteboard drawing features:**
-- **Handwriting Simulation**: Uses Windows default handwriting-style fonts (like `Ink Free` or `Segoe Print`) to draw all math equations and annotations.
+- **Handwriting Simulation**: Uses the **bundled Kalam handwriting font** for all annotations and math, so the board looks hand-written and **identical on every OS** (Windows / Linux / macOS). System handwriting fonts (`Ink Free`, `Segoe Print`, macOS Chalkboard) are only a fallback if the bundled font is unavailable.
 - **Word-wise Progressive Reveal**: Reveals mathematical equations progressively token-by-token (word/symbol-wise) to simulate natural handwritten speed.
 - **Proportional Underlining**: Computes the coordinates of targets dynamically and draws hand-drawn underlines exactly below coordinates (e.g. `A (1, 2)`).
 - **Diagonal Option Slash**: Ticks the correct option letter indicator by drawing a hand-drawn diagonal slash crossing cleanly inside the option text box (e.g. `(C)`).
@@ -450,7 +450,7 @@ python scripts/rename_questions.py --zip input/questions.zip --excel input/metad
 | **OpenAI Whisper** | Speech-to-text with word-level timestamps |
 | **EasyOCR** | Extract text and positions from question images |
 | **Google Gemini (2.5 / 2.0 Flash)** | LLM-powered, language-aware annotation generation |
-| **Kalam (bundled TTF)** | Devanagari handwriting font for rendering Hindi solutions |
+| **Kalam (bundled TTF)** | Handwriting font for **all** rendered text — Hindi (Devanagari) **and** English (Latin/math) — so the board looks identical on every OS |
 | **Pillow (PIL)** | Frame rendering, text drawing, image composition |
 | **MoviePy** | Video assembly, audio sync, MP4 encoding |
 | **OpenCV** | Image processing support |
