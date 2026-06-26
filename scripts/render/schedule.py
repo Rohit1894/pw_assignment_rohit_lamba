@@ -654,11 +654,20 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
             else:
                 entry["render_font"] = step_font  # math radical token reveal, sized to fit
                 entry["line_height"] = int(step_fs * 1.45)
-                try:
-                    bw = min(region_w, int(_measure_draw.textlength(text, font=step_font)))
-                except Exception:
-                    bw = region_w
-                bh = entry["line_height"]
+                # Lines with \frac: pre-build a text_layout for the layer-reveal
+                # path in frame.py — token-by-token reveal breaks on partial
+                # \frac expressions (unclosed braces render as literal LaTeX).
+                if "\\frac" in text:
+                    layout = _build_text_layers(
+                        text, step_font, pen, region_w, _measure_draw)
+                    entry["text_layout"] = layout
+                    bw, bh = layout["block_w"], layout["block_h"]
+                else:
+                    try:
+                        bw = min(region_w, int(_measure_draw.textlength(text, font=step_font)))
+                    except Exception:
+                        bw = region_w
+                    bh = entry["line_height"]
                 clear_y, step_box = _next_clear_y(wx, wy, bw, bh, occupied, H, step_gap)
                 entry["write_pos"] = (wx, clear_y)
                 occupied.append(step_box)

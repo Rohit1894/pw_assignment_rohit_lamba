@@ -33,8 +33,105 @@ _GLYPH_FIXUPS_DEVANAGARI = {
 _MATH_CHARS_RE = re.compile(r"[=√^₀-₉⁰¹²³⁴⁵⁶⁷⁸⁹]|\bformula\b", re.IGNORECASE)
 
 
+# ── LaTeX-to-Unicode substitution ────────────────────────────────────────────
+# Common LaTeX commands the model emits in English physics/chemistry/maths.
+# Applied in _sanitize_text so every render path benefits automatically.
+# \\frac is intentionally ABSENT — it is handled by draw_math_equation_with_radicals
+# which renders it as a proper stacked fraction, not a Unicode substitute.
+_LATEX_SUBS = [
+    (r'\propto',     '∝'),
+    (r'\rightarrow', '→'),
+    (r'\leftarrow',  '←'),
+    (r'\Rightarrow', '⇒'),
+    (r'\Leftarrow',  '⇐'),
+    (r'\approx',     '≈'),
+    (r'\times',      '×'),
+    (r'\cdot',       '·'),
+    (r'\pm',         '±'),
+    (r'\mp',         '∓'),
+    (r'\leq',        '≤'),
+    (r'\geq',        '≥'),
+    (r'\neq',        '≠'),
+    (r'\infty',      '∞'),
+    (r'\partial',    '∂'),
+    (r'\nabla',      '∇'),
+    (r'\Delta',      'Δ'),
+    (r'\Sigma',      'Σ'),
+    (r'\Pi',         'Π'),
+    (r'\Omega',      'Ω'),
+    (r'\delta',      'δ'),
+    (r'\alpha',      'α'),
+    (r'\beta',       'β'),
+    (r'\gamma',      'γ'),
+    (r'\lambda',     'λ'),
+    (r'\mu',         'μ'),
+    (r'\nu',         'ν'),
+    (r'\pi',         'π'),
+    (r'\rho',        'ρ'),
+    (r'\sigma',      'σ'),
+    (r'\theta',      'θ'),
+    (r'\omega',      'ω'),
+    (r'\eta',        'η'),
+    (r'\epsilon',    'ε'),
+    (r'\phi',        'φ'),
+    (r'\psi',        'ψ'),
+    (r'\xi',         'ξ'),
+    (r'\zeta',       'ζ'),
+    (r'\chi',        'χ'),
+    (r'\tau',        'τ'),
+    (r'\kappa',      'κ'),
+    (r'\iota',       'ι'),
+    (r'\%',          '%'),
+]
+
+
+def _expand_latex(text):
+    """Substitute common LaTeX commands with their Unicode equivalents.
+
+    Called from _sanitize_text. \\frac is deliberately excluded — it is rendered
+    as a stacked fraction by draw_math_equation_with_radicals.
+    """
+    for cmd, sub in _LATEX_SUBS:
+        text = text.replace(cmd, sub)
+    return text
+
+
+# Inverse of _SUPERSCRIPT_MAP: normal base char → Unicode superscript.
+_TO_SUPERSCRIPT = {v: k for k, v in _SUPERSCRIPT_MAP.items()}
+
+# Matches caret-notation exponents: ^(expr), ^{expr}, or ^X (single char).
+_CARET_RE = re.compile(r'\^(\(([^)]*)\)|\{([^}]*)\}|([A-Za-z0-9+\-]))')
+
+
+def _expand_carets(text):
+    """Convert caret-notation superscripts to Unicode superscript characters.
+
+    Handles:
+      ^a       →  ᵃ          (single letter / digit / sign)
+      ^(b+c)   →  ⁽ᵇ⁺ᶜ⁾     (parenthesised expression)
+      ^{a-3b}  →  ⁽ᵃ⁻³ᵇ⁾    (LaTeX-braced expression)
+
+    Characters with no Unicode superscript equivalent are kept as-is.
+    """
+    def _to_sup(s, wrap_parens):
+        inner = ''.join(_TO_SUPERSCRIPT.get(c, c) for c in s)
+        if wrap_parens:
+            return _TO_SUPERSCRIPT.get('(', '(') + inner + _TO_SUPERSCRIPT.get(')', ')')
+        return inner
+
+    def replace(m):
+        if m.group(2) is not None:   # ^(expr)
+            return _to_sup(m.group(2), wrap_parens=True)
+        if m.group(3) is not None:   # ^{expr}
+            return _to_sup(m.group(3), wrap_parens=True)
+        return _to_sup(m.group(4), wrap_parens=False)  # single char
+
+    return _CARET_RE.sub(replace, text)
+
+
 def _sanitize_text(text):
-    """Replace glyphs missing from the handwriting font with safe equivalents.
+    """Replace glyphs missing from the handwriting font with safe equivalents,
+    and expand LaTeX commands and caret notation to Unicode.
 
     The arrow→"=" substitution is scoped to Devanagari text only: the Hindi path
     pre-renders a whole string in one font (Kalam) with no per-glyph fallback, so
@@ -47,6 +144,8 @@ def _sanitize_text(text):
     if _contains_devanagari(text):
         for bad, good in _GLYPH_FIXUPS_DEVANAGARI.items():
             text = text.replace(bad, good)
+    text = _expand_latex(text)
+    text = _expand_carets(text)
     return text
 
 

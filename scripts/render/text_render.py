@@ -83,22 +83,38 @@ def _read_braced(s, pos):
     return s[pos + 1:], len(s)            # unbalanced -> take the rest
 
 
+def _math_width(draw, text, font):
+    """Measure pixel width of a math expression, supporting nested \\frac."""
+    if "\\frac" not in text:
+        return get_custom_text_width(draw, text, font)
+    probe = Image.new("RGBA", (6000, max(200, font.size * 4)))
+    return draw_math_equation_with_radicals(
+        ImageDraw.Draw(probe), 0, font.size, text, font, (0, 0, 0))
+
+
+def _math_draw(draw, x, y, text, font, color):
+    """Draw a math expression, supporting nested \\frac in num/den."""
+    if "\\frac" not in text:
+        draw_custom_text(draw, x, y, text, font, color)
+    else:
+        draw_math_equation_with_radicals(draw, x, y, text, font, color)
+
+
 def _draw_fraction(draw, x, y, num, den, font, color):
     """Draw `num` over `den` with a horizontal bar (a stacked fraction), centred
-    vertically on the line so it sits amid neighbouring inline text. Numerator and
-    denominator are drawn inline (sub/superscripts + glyph fallback; a √ inside a
-    fraction renders as a symbol glyph, not the hand-drawn spanning radical).
-    Returns the right-edge x."""
+    vertically on the line so it sits amid neighbouring inline text. Nested
+    \\frac expressions in num or den are rendered recursively via
+    draw_math_equation_with_radicals. Returns the right-edge x."""
     pad = 8
-    num_w = get_custom_text_width(draw, num, font)
-    den_w = get_custom_text_width(draw, den, font)
+    num_w = _math_width(draw, num, font)
+    den_w = _math_width(draw, den, font)
     w = max(num_w, den_w)
     fs = font.size
     bar_y = y + int(fs * 0.55)                        # near the inline text's centre
     num_y = bar_y - int(fs * 0.85)
     den_y = bar_y + int(fs * 0.08)
-    draw_custom_text(draw, x + pad / 2 + (w - num_w) / 2, num_y, num, font, color)
-    draw_custom_text(draw, x + pad / 2 + (w - den_w) / 2, den_y, den, font, color)
+    _math_draw(draw, x + pad / 2 + (w - num_w) / 2, num_y, num, font, color)
+    _math_draw(draw, x + pad / 2 + (w - den_w) / 2, den_y, den, font, color)
     draw.line([(x, bar_y), (x + w + pad, bar_y)], fill=color, width=2)
     return x + w + pad + 4
 
@@ -224,6 +240,30 @@ def _measure_block(draw, text, font, max_w):
     return lines, width, line_h * max(1, len(lines)), line_h
 
 
+def _render_frac_layer(text, font, color):
+    """Pre-render a line containing \\frac into an RGBA layer via the math engine.
+
+    The layer is taller than a normal text line to accommodate the stacked
+    numerator / bar / denominator geometry. _build_text_layers adapts line_h
+    to the tallest layer so spacing between steps stays correct.
+    """
+    fs = font.size
+    # Vertical geometry from _draw_fraction:
+    #   num top  ≈ y − 0.30·fs   (above baseline y)
+    #   den top  ≈ y + 0.63·fs   (below baseline y), extends ~fs further down
+    # Set y_off so the numerator sits at least 0.1·fs below the layer top.
+    y_off = int(fs * 0.45)
+    h = y_off + int(fs * 2.1) + 8
+    # Measure rendered width via a probe canvas.
+    probe = Image.new("RGBA", (6000, h + 20))
+    w = int(draw_math_equation_with_radicals(
+        ImageDraw.Draw(probe), 0, y_off, text, font, color))
+    # Render into a correctly-sized transparent RGBA layer.
+    layer = Image.new("RGBA", (max(1, w + 8), h), (0, 0, 0, 0))
+    draw_math_equation_with_radicals(ImageDraw.Draw(layer), 0, y_off, text, font, color)
+    return layer, w + 8, h
+
+
 # ── Crop-reveal text rendering (perfect Devanagari shaping) ─────────────────
 def _layout_text_lines(text, font, max_w, measure_draw):
     """Split on explicit newlines, then word-wrap each part to max_w."""
@@ -244,10 +284,14 @@ def _render_text_layer(text, font, color):
     Hindi matras/conjuncts perfectly shaped — we never re-shape a partial
     string, we just uncover more of an already-correct image.
 
+    Lines containing \\frac are routed through _render_frac_layer (the math
+    engine) so fractions render as stacked glyphs, not literal LaTeX text.
     Devanagari is drawn as one whole string (shaping is mandatory). Latin/math
     text is drawn glyph-by-glyph so any symbol the handwriting font lacks (Greek,
     operators, arrows) falls back to a symbol font instead of an empty box.
     """
+    if "\\frac" in text:
+        return _render_frac_layer(text, font, color)
     tmp = Image.new("RGBA", (4, 4))
     d = ImageDraw.Draw(tmp)
     try:
@@ -282,7 +326,12 @@ def _build_text_layers(text, font, color, max_w, measure_draw):
     """Pre-render every wrapped line to a layer. Returns layout dict."""
     line_strs = _layout_text_lines(text, font, max_w, measure_draw)
     layers = [_render_text_layer(ln, font, color) for ln in line_strs]
-    line_h = int(font.size * 1.5)
+    # Use the tallest layer as the line pitch so fraction lines (which need
+    # more vertical space than plain text) don't overlap the lines below them.
+    line_h = max(
+        max((h for _, _, h in layers), default=0),
+        int(font.size * 1.5),
+    )
     block_w = max((w for _, w, _ in layers), default=1)
     block_h = line_h * len(layers)
     total_w = sum(w for _, w, _ in layers) or 1
