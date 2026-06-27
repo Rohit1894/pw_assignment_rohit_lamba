@@ -34,7 +34,7 @@ _AUDIO_MIME = {
 _IMAGE_MIME = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
 
 # Bump when the prompt/schema changes so stale cached responses are not reused.
-PROMPT_VERSION = "v22-multisubject-frac"
+PROMPT_VERSION = "v23-chem-phys-math"
 _CACHE_DIR = os.path.join("output", ".mm_cache")
 
 
@@ -277,13 +277,34 @@ English or Hindi — handle every subject the same way; NEVER assume biology):
     {{"action":"write_step","text":"[v] = T⁻¹, [ρ] = ML⁻³, [s] = MT⁻²"}}
     {{"action":"write_step","text":"compare powers of M, L, T"}}
     {{"action":"write_step","text":"a = −3/2, b = −1/2, c = 1/2"}}
-- Chemistry example: write formulae with subscripts and reaction arrows, e.g.
-    {{"action":"write_step","text":"2H₂ + O₂ → 2H₂O"}}, "CH₄", "[H⁺]", "Δ".
+- Chemistry: subscripts in formulae, reaction/equilibrium/state notation, e.g.
+    {{"action":"write_step","text":"2H₂ + O₂ → 2H₂O (combustion)"}},
+    {{"action":"write_step","text":"N₂ + 3H₂ ⇌ 2NH₃ (equilibrium)"}},
+    {{"action":"write_step","text":"AgNO₃ + NaCl → AgCl↓ + NaNO₃"}},
+    {{"action":"write_step","text":"ΔH = -285.8 kJ/mol"}},
+    {{"action":"write_step","text":"pH = -log[H⁺]"}},
+    {{"action":"write_step","text":"Kc = [NH₃]² / ([N₂]·[H₂]³)"}},
+    {{"action":"write_note","text":"SN1 → racemic; SN2 → inversion"}}.
+  Use ⇌ for equilibrium, ↑ for gas evolved, ↓ for precipitate. For a rate
+  expression use \\frac: {{"text":"r = k\\frac{{[A][B]}}{{[C]}}"}}.
+- Physics: write SI units, vectors and field equations correctly, e.g.
+    {{"action":"write_step","text":"F = qvB sin θ"}},
+    {{"action":"write_step","text":"E = hν = hc/λ"}},
+    {{"action":"write_step","text":"PV = nRT"}},
+    {{"action":"write_step","text":"Z = √(R² + X²)"}},
+    {{"action":"write_step","text":"1/f = 1/v − 1/u"}},
+    {{"action":"write_note","text":"ℏ = h/2π ≈ 1.055×10⁻³⁴ J·s"}}.
+  Units go inline (m/s², N·m, kg·m²/s, °C, kJ/mol). Vector notation: F⃗, v⃗.
+- Maths: surds, logs, trig, calculus, e.g.
+    {{"action":"write_step","text":"\\frac{{d}}{{dx}}(xⁿ) = nxⁿ⁻¹"}},
+    {{"action":"write_step","text":"∫ eˣ dx = eˣ + C"}},
+    {{"action":"write_step","text":"sin²θ + cos²θ = 1"}},
+    {{"action":"write_step","text":"discriminant = b²−4ac < 0 → no real roots"}}.
 - For an English MCQ, underline the key stem term, briefly evaluate each option,
   cross out a wrong option ONLY when the teacher rejects it, then mark_answer.
 - All written `text` (notes, steps) MUST be in the SLIDE's own language: English
   notes for an English slide, Hindi for a Hindi slide. Keep Latin symbols/units
-  exactly as printed (m/s, mol, N, J, Hz, °C).
+  exactly as printed (m/s, mol, N, J, Hz, °C, kJ/mol).
 
 WORKSPACE NOTES (make the board CLEAR, not crowded — this is MANDATORY):
 - Include 2-4 short factual notes per question (write_note or annotate_word) — at
