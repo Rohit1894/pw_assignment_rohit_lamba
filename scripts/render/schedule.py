@@ -446,11 +446,20 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
             # A thin underline is intentionally NOT added as an obstacle, so a
             # word's meaning can still be written just below it.
             ul = _underline_for_box(box, occupied, W, H) if box else None
-            # Reject underlines that land below the question-text zone (e.g. when
-            # OCR snaps the target to a box in the options row, causing _underline_for_box
-            # to place the line in blank space below the last option).
-            if ul and ul[1] > H * 0.75:
-                ul = None
+            # Reject underlines that resolve to the options block or below.
+            # "underline_existing" targets belong to the question stem; when OCR
+            # resolves the target to a wrong box in the options zone the line
+            # appears in blank space. Use opt_top (first option marker row) as
+            # the hard ceiling. Without option data fall back to H*0.92.
+            if ul:
+                if option_positions:
+                    reject_y = opt_top - 4
+                else:
+                    content_boxes = [b for b in occupied if b != (W - 175, 0, W, 150)]
+                    reject_y = (min(max(b[3] for b in content_boxes) + 10, H * 0.97)
+                                if content_boxes else H * 0.92)
+                if ul[1] > reject_y:
+                    ul = None
             entry["underline_params"] = ul
 
         elif action == "cross_out_word":
@@ -495,17 +504,32 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
             target_str = ann.get("target")
             custom_box = ann.get("box") or ann.get("box_2d") or ann.get("box_norm")
             anchor = None
+            skip_hug = False  # True when the anchor is inside question text
+
+            # Phase A: resolve anchor early so self-labeling can use it.
             if not custom_box and target_str:
                 anchor = _resolve_box(ann, ocr_index, W, H, option_positions=option_positions)
-            # A lone annotate_word ("अंडोत्सर्ग") is meaningless once it gets parked
-            # away from its word, so make it self-contained: prefix a compact cue drawn
-            # from its target ("एलएच तीव्र → अंडोत्सर्ग"). Harmless if an arrow connects.
+            custom_cand = None
+            if custom_box:
+                custom_cand = _resolve_box(ann, ocr_index, W, H, option_positions=option_positions)
+                if custom_cand and action == "annotate_word":
+                    # annotate_word corrections must NEVER land on top of the question
+                    # text (the custom_box / box_2d Gemini gives points INTO the text).
+                    # Use it only as an arrow anchor; the note always goes to workspace.
+                    if target_str and not anchor:
+                        anchor = custom_cand
+                    skip_hug = True  # skip "hug" → go straight to workspace
+
+            # Self-label a lone annotate_word so it reads without an arrow:
+            # prefix the target cue ("s -> b") so the correction is self-contained.
+            # Anchor must be set first (done above) for this check to fire.
             if (action == "annotate_word" and anchor and target_str
                     and "->" not in text and "→" not in text and len(text) <= 44):
                 cue = _target_cue(target_str)
                 if cue and cue not in text:
                     # ASCII arrow — the Devanagari font has no "→" glyph (renders tofu).
                     text = f"{cue} -> {text}"
+
             is_hi = _contains_devanagari(text)
             base = 25 if action == "annotate_word" else 28
             fnt = _sized_variant(hindi_font if is_hi else font_body,
@@ -514,28 +538,19 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
             layout = _build_text_layers(text, fnt, pen, max_w, _measure_draw)
             bw, bh = layout["block_w"], layout["block_h"]
 
+            # Phase B: slot placement from custom_box (needs bw/bh from layout).
             slot = None
             need_arrow = False
-            skip_hug = False  # True when the anchor is inside question text
-            if custom_box:
-                cand = _resolve_box(ann, ocr_index, W, H, option_positions=option_positions)
-                if cand:
-                    if action == "annotate_word":
-                        # annotate_word corrections must NEVER land on top of the question
-                        # text (the custom_box / box_2d Gemini gives points INTO the text).
-                        # Use it only as an arrow anchor; the note always goes to workspace.
-                        if target_str and not anchor:
-                            anchor = cand
-                        skip_hug = True  # skip "hug" → go straight to workspace
-                    else:
-                        # write_note: honour the custom_box if it doesn't overlap content.
-                        note_rect = (cand[0], cand[1], cand[0] + bw, cand[1] + bh)
-                        if not _boxes_overlap(note_rect, occupied, pad=4):
-                            slot = note_rect
-                        if slot is None and target_str and not anchor:
-                            anchor = _resolve_box(ann, ocr_index, W, H,
-                                                  option_positions=option_positions)
-                            skip_hug = True
+            if custom_cand and action != "annotate_word":
+                # write_note: honour the custom_box if it doesn't overlap content.
+                note_rect = (custom_cand[0], custom_cand[1],
+                             custom_cand[0] + bw, custom_cand[1] + bh)
+                if not _boxes_overlap(note_rect, occupied, pad=4):
+                    slot = note_rect
+                if slot is None and target_str and not anchor:
+                    anchor = _resolve_box(ann, ocr_index, W, H,
+                                          option_positions=option_positions)
+                    skip_hug = True
             if slot is None:
                 # 1) annotate_word: hug the target word directly when there's room.
                 #    Skipped when the anchor is inside the question text body.
@@ -574,14 +589,21 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
             if ap and len(ap) == 4:
                 entry["arrow_params"] = tuple(ap)
             elif need_arrow and anchor:
-                # Connect the note to its word when the connector won't slice across
-                # other text (the note now self-labels, so an unlinked one still reads).
-                acx, acy = (anchor[0] + anchor[2]) / 2, (anchor[1] + anchor[3]) / 2
-                scx, scy = slot[0] + 8, slot[1] + 6
-                a_from, s_to = (acx, anchor[3] + 2), (scx, scy)
-                if (math.hypot(acx - scx, acy - scy) <= 300
-                        and not _arrow_crosses_text(a_from, s_to, occupied)):
-                    entry["arrow_params"] = (acx, anchor[3] + 2, scx, scy)
+                # annotate_word already self-labels ("s -> b") so no arrow is
+                # needed when the anchor is inside question text — a long diagonal
+                # connector cutting across the slide looks worse than the absence
+                # of the link.
+                if action == "annotate_word" and skip_hug:
+                    pass
+                else:
+                    # Connect the note to its word when the connector won't slice
+                    # across other text (self-labeled, so an unlinked note still reads).
+                    acx, acy = (anchor[0] + anchor[2]) / 2, (anchor[1] + anchor[3]) / 2
+                    scx, scy = slot[0] + 8, slot[1] + 6
+                    a_from, s_to = (acx, anchor[3] + 2), (scx, scy)
+                    if (math.hypot(acx - scx, acy - scy) <= 300
+                            and not _arrow_crosses_text(a_from, s_to, occupied)):
+                        entry["arrow_params"] = (acx, anchor[3] + 2, scx, scy)
 
         elif action == "fill_placeholder":  # answer for a printed-figure blank
             # CASE 1 — the fill targets a NODE of a drawn diagram (Gemini sometimes
