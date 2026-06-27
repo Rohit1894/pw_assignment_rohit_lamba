@@ -32,7 +32,7 @@ def draw_custom_text(draw, x, y, text, font, color):
         elif char in _SUPERSCRIPT_MAP:
             char_to_draw = _SUPERSCRIPT_MAP[char]
             curr_font = sub_font
-            curr_y = y - int(font.size * 0.15)
+            curr_y = y - int(font.size * 0.35)
 
         draw_font = _resolve_glyph_font(char_to_draw, curr_font)
         draw.text((curr_x, curr_y), char_to_draw, fill=color, font=draw_font)
