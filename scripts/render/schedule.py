@@ -29,7 +29,7 @@ from render.strokes import (
 from render.text_render import (
     draw_custom_text, get_custom_text_width, draw_math_equation_with_radicals,
     _measure_block, _layout_text_lines, _render_text_layer, _build_text_layers,
-    _paste_text_reveal,
+    _paste_text_reveal, _frac_nesting_depth,
 )
 from render.geometry import (
     _boxes_overlap, _segment_hits_rect, _arrow_crosses_text, _underline_for_box,
@@ -357,8 +357,23 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
     n_steps = sum(1 for a in annotations if _is_workspace_write_action(a))
     step_avail_h = max(80, ry2 - wy - 20)
     if n_steps > 0:
-        per_line = step_avail_h / n_steps
-        step_fs = int(max(15, min(int(font_body.size), (per_line - 12) / 1.4)))
+        # Weight each step by its expected rendered height. A \frac renders
+        # 3–6× taller than a plain text line depending on nesting depth and how
+        # many fraction tokens appear. Counting effective weighted lines gives a
+        # much better font-size estimate than treating everything as one line.
+        _FRAC_WEIGHTS = {0: 1.0, 1: 3.0, 2: 5.0}
+        effective_lines = 0.0
+        for _a in annotations:
+            if _is_workspace_write_action(_a):
+                _st = _sanitize_text(_a.get("text", ""))
+                if "\\frac" in _st:
+                    _depth = min(2, _frac_nesting_depth(_st))
+                    _nf = _st.count("\\frac")
+                    effective_lines += _FRAC_WEIGHTS[_depth] * max(1.0, _nf / 2.0)
+                else:
+                    effective_lines += 1.0
+        per_line = step_avail_h / max(effective_lines, 1.0)
+        step_fs = int(max(13, min(int(font_body.size), (per_line - 12) / 1.4)))
     else:
         step_fs = int(font_body.size)
     step_font = _sized_variant(font_body, step_fs)
@@ -377,6 +392,24 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
         step_font = _sized_variant(font_body, step_fs)
     step_hindi_font = _sized_variant(hindi_font, step_fs + 2)
     step_gap = max(6, int(step_fs * 0.45))
+
+    # Overflow column: bottom-left of frame below the option block. Used when
+    # the primary right-margin column fills up (many frac steps). The top is
+    # below the lowest left-side OCR box (covers option-text visual extent,
+    # not just the marker bounding box). `_ws_col` tracks which column is active.
+    _left_occ_bottoms = [b[3] for b in occupied if b[0] < ws_zone_x0 + 20]
+    if _left_occ_bottoms:
+        _ovf_y0 = int(max(_left_occ_bottoms)) + 20
+    elif option_positions:
+        _opt_all_pts = [p for pts in option_positions.values() for p in pts]
+        _ovf_y0 = int(max(p[1] for p in _opt_all_pts)) + 20
+    else:
+        _ovf_y0 = int(0.65 * H)
+    _ovf_y0 = min(_ovf_y0, H - 80)
+    _ovf_x0 = 24
+    _ovf_x1 = max(ws_zone_x0 - 20, 200)
+    _ovf_region_w = max(100, _ovf_x1 - _ovf_x0)
+    _ws_col = 0   # 0 = primary right column; 1 = overflow bottom-left column
 
     def _compute_diagram(spec, occ):
         """Lay a diagram spec into the larger clear region; return its layout dict."""
@@ -716,6 +749,24 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
                         bw = region_w
                     bh = entry["line_height"]
                 clear_y, step_box = _next_clear_y(wx, wy, bw, bh, occupied, H, step_gap)
+                # Overflow: primary column full → move to bottom-left column.
+                if clear_y + bh > H - 8 and _ws_col == 0:
+                    _ws_col = 1
+                    wx, wy = _ovf_x0, _ovf_y0
+                    region_w = _ovf_region_w
+                    # Rebuild layout for the new (possibly different) column width.
+                    if "\\frac" in text:
+                        layout = _build_text_layers(
+                            text, step_font, pen, region_w, _measure_draw)
+                        entry["text_layout"] = layout
+                        bw, bh = layout["block_w"], layout["block_h"]
+                    else:
+                        try:
+                            bw = min(region_w,
+                                     int(_measure_draw.textlength(text, font=step_font)))
+                        except Exception:
+                            bw = region_w
+                    clear_y, step_box = _next_clear_y(wx, wy, bw, bh, occupied, H, step_gap)
                 entry["write_pos"] = (wx, clear_y)
                 occupied.append(step_box)
                 wy = clear_y + bh + step_gap
