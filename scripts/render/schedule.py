@@ -445,7 +445,13 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
             box = _resolve_box(ann, ocr_index, W, H, option_positions=option_positions)
             # A thin underline is intentionally NOT added as an obstacle, so a
             # word's meaning can still be written just below it.
-            entry["underline_params"] = _underline_for_box(box, occupied, W, H) if box else None
+            ul = _underline_for_box(box, occupied, W, H) if box else None
+            # Reject underlines that land below the question-text zone (e.g. when
+            # OCR snaps the target to a box in the options row, causing _underline_for_box
+            # to place the line in blank space below the last option).
+            if ul and ul[1] > H * 0.75:
+                ul = None
+            entry["underline_params"] = ul
 
         elif action == "cross_out_word":
             entry["write_end"] = t + 0.8
@@ -510,11 +516,30 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
 
             slot = None
             need_arrow = False
+            skip_hug = False  # True when the anchor is inside question text
             if custom_box:
-                slot = _resolve_box(ann, ocr_index, W, H, option_positions=option_positions)
+                cand = _resolve_box(ann, ocr_index, W, H, option_positions=option_positions)
+                if cand:
+                    if action == "annotate_word":
+                        # annotate_word corrections must NEVER land on top of the question
+                        # text (the custom_box / box_2d Gemini gives points INTO the text).
+                        # Use it only as an arrow anchor; the note always goes to workspace.
+                        if target_str and not anchor:
+                            anchor = cand
+                        skip_hug = True  # skip "hug" → go straight to workspace
+                    else:
+                        # write_note: honour the custom_box if it doesn't overlap content.
+                        note_rect = (cand[0], cand[1], cand[0] + bw, cand[1] + bh)
+                        if not _boxes_overlap(note_rect, occupied, pad=4):
+                            slot = note_rect
+                        if slot is None and target_str and not anchor:
+                            anchor = _resolve_box(ann, ocr_index, W, H,
+                                                  option_positions=option_positions)
+                            skip_hug = True
             if slot is None:
                 # 1) annotate_word: hug the target word directly when there's room.
-                if anchor:
+                #    Skipped when the anchor is inside the question text body.
+                if anchor and not skip_hug:
                     for (bx, by) in ((anchor[0], anchor[3] + 6), (anchor[0] - 12, anchor[3] + 8),
                                      (anchor[2] - bw, anchor[3] + 6)):
                         bx = max(8, min(int(bx), W - bw - 8)); by = int(by)

@@ -83,6 +83,27 @@ def _read_braced(s, pos):
     return s[pos + 1:], len(s)            # unbalanced -> take the rest
 
 
+def _frac_nesting_depth(text):
+    """Return the maximum nesting depth of \\frac in text.
+
+    Sequential fracs (same level) return depth 1.
+    A frac inside another frac's braces returns depth 2, etc.
+    Used to size _render_frac_layer tall enough to avoid clipping.
+    """
+    depth = 0
+    max_d = 0
+    i = 0
+    while i < len(text):
+        if text[i:i+5] == "\\frac":
+            max_d = max(max_d, depth + 1)
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth = max(0, depth - 1)
+        i += 1
+    return max(max_d, 1)
+
+
 def _math_width(draw, text, font):
     """Measure pixel width of a math expression, supporting nested \\frac."""
     if "\\frac" not in text:
@@ -110,9 +131,11 @@ def _draw_fraction(draw, x, y, num, den, font, color):
     den_w = _math_width(draw, den, font)
     w = max(num_w, den_w)
     fs = font.size
-    bar_y = y + int(fs * 0.55)                        # near the inline text's centre
-    num_y = bar_y - int(fs * 0.85)
-    den_y = bar_y + int(fs * 0.08)
+    # bar_y pushed to 0.75*fs so the full font cell (including descenders on
+    # ρ, g, p, etc.) clears the bar — was 0.55 which let descenders cross it.
+    bar_y = y + int(fs * 0.75)
+    num_y = bar_y - int(fs * 1.20)     # numerator top well above bar
+    den_y = bar_y + int(fs * 0.12)     # small gap below bar
     _math_draw(draw, x + pad / 2 + (w - num_w) / 2, num_y, num, font, color)
     _math_draw(draw, x + pad / 2 + (w - den_w) / 2, den_y, den, font, color)
     draw.line([(x, bar_y), (x + w + pad, bar_y)], fill=color, width=2)
@@ -246,14 +269,17 @@ def _render_frac_layer(text, font, color):
     The layer is taller than a normal text line to accommodate the stacked
     numerator / bar / denominator geometry. _build_text_layers adapts line_h
     to the tallest layer so spacing between steps stays correct.
+
+    Height scales with the maximum nesting depth of \\frac expressions so that
+    nested fracs (e.g. \\frac{ρL}{\\frac{πd²}{4}}) are never clipped.
     """
     fs = font.size
-    # Vertical geometry from _draw_fraction:
-    #   num top  ≈ y − 0.30·fs   (above baseline y)
-    #   den top  ≈ y + 0.63·fs   (below baseline y), extends ~fs further down
-    # Set y_off so the numerator sits at least 0.1·fs below the layer top.
-    y_off = int(fs * 0.45)
-    h = y_off + int(fs * 2.1) + 8
+    # y_off = 0.60·fs gives the numerator (at bar_y − 1.20·fs) a ~0.15·fs
+    # margin below the layer top, matching the new _draw_fraction geometry.
+    y_off = int(fs * 0.60)
+    depth = _frac_nesting_depth(text)
+    # Base height covers one frac level; each additional nesting adds ~1.3·fs.
+    h = y_off + int(fs * (2.2 + (depth - 1) * 1.3)) + 12
     # Measure rendered width via a probe canvas.
     probe = Image.new("RGBA", (6000, h + 20))
     w = int(draw_math_equation_with_radicals(
