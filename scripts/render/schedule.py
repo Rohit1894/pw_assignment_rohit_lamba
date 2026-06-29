@@ -522,12 +522,7 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
                         ib = _option_box_or_infer(opt_L, option_positions)
                         xl, cy = (ib[0], (ib[1] + ib[3]) / 2) if ib else (None, None)
                     if xl is not None:
-                        struck_options.add(opt_L)
-                        if opt_L in opt_rows:        # strike EVERY line of the option
-                            entry["strike_lines"] = _option_strike_segments(opt_L)
-                        else:                        # marker OCR-missed → single inferred row
-                            entry["strike_lines"] = [
-                                (xl - 4, cy, _option_row_right(cy, xl) + 6)]
+                        struck_options.add(opt_L)   # track for answer-ordering; no visual strike
                 # else: suppress (redundant, or would cross the answer)
             else:
                 entry["cross_params"] = box          # genuine stem-word cross → an X
@@ -859,28 +854,8 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
 
         temp_schedule.append(entry)
 
-    # Auto-inject cross_out_word for wrong options when Gemini produced none.
-    # Triggered when: the question has a mark_answer AND option geometry is known
-    # AND no cross_out_word was generated (e.g. Gemini misclassified as "numerical").
-    if answer_opt and option_positions and not struck_options:
-        # Set initial times near the END of the audio so these auto-injected entries
-        # sort AFTER all write_steps when teach_actions is redistributed.  The
-        # "deterministic order for option-elimination marks" pass retimes them into
-        # the correct conclusion window regardless of this initial placement.
-        conclusion_t = total_duration - 3.0
-        for L in sorted(k for k in opt_rows if k != answer_opt):
-            segs = _option_strike_segments(L)
-            if segs:
-                temp_schedule.append({
-                    "action": "cross_out_word",
-                    "time": conclusion_t,
-                    "write_start": conclusion_t,
-                    "write_end": conclusion_t + 0.8,
-                    "target": L,
-                    "strike_lines": segs,
-                })
-                struck_options.add(L)
-                conclusion_t += 1.0
+    # Strikeout effect removed — wrong options are tracked internally (struck_options)
+    # for answer-mark ordering but no strike lines are drawn on screen.
 
     # Pass 2: stretch text-writing durations to fill the spoken segment.
     stretch_actions = TEXT_ACTIONS + WRITE_ACTIONS
