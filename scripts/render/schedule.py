@@ -744,10 +744,19 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
                     bw, bh = layout["block_w"], layout["block_h"]
                 else:
                     try:
-                        bw = min(region_w, int(_measure_draw.textlength(text, font=step_font)))
+                        _mw = int(_measure_draw.textlength(text, font=step_font))
                     except Exception:
-                        bw = region_w
-                    bh = entry["line_height"]
+                        _mw = region_w + 1
+                    # If the line is too wide for the column (accounting for a
+                    # 12% safety buffer for per-glyph fallback font width variance),
+                    # route it through _build_text_layers which wraps at word breaks.
+                    if _mw > region_w * 0.88:
+                        layout = _build_text_layers(text, step_font, pen, region_w, _measure_draw)
+                        entry["text_layout"] = layout
+                        bw, bh = layout["block_w"], layout["block_h"]
+                    else:
+                        bw = min(region_w, _mw)
+                        bh = entry["line_height"]
                 clear_y, step_box = _next_clear_y(wx, wy, bw, bh, occupied, H, step_gap)
                 # Overflow: primary column full → move to bottom-left column.
                 if clear_y + bh > H - 8 and _ws_col == 0:
@@ -755,17 +764,17 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
                     wx, wy = _ovf_x0, _ovf_y0
                     region_w = _ovf_region_w
                     # Rebuild layout for the new (possibly different) column width.
-                    if "\\frac" in text:
+                    try:
+                        _mw2 = int(_measure_draw.textlength(text, font=step_font))
+                    except Exception:
+                        _mw2 = region_w + 1
+                    if "\\frac" in text or _mw2 > region_w * 0.88:
                         layout = _build_text_layers(
                             text, step_font, pen, region_w, _measure_draw)
                         entry["text_layout"] = layout
                         bw, bh = layout["block_w"], layout["block_h"]
                     else:
-                        try:
-                            bw = min(region_w,
-                                     int(_measure_draw.textlength(text, font=step_font)))
-                        except Exception:
-                            bw = region_w
+                        bw = min(region_w, _mw2)
                     clear_y, step_box = _next_clear_y(wx, wy, bw, bh, occupied, H, step_gap)
                 entry["write_pos"] = (wx, clear_y)
                 occupied.append(step_box)
@@ -850,6 +859,29 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
 
         temp_schedule.append(entry)
 
+    # Auto-inject cross_out_word for wrong options when Gemini produced none.
+    # Triggered when: the question has a mark_answer AND option geometry is known
+    # AND no cross_out_word was generated (e.g. Gemini misclassified as "numerical").
+    if answer_opt and option_positions and not struck_options:
+        # Set initial times near the END of the audio so these auto-injected entries
+        # sort AFTER all write_steps when teach_actions is redistributed.  The
+        # "deterministic order for option-elimination marks" pass retimes them into
+        # the correct conclusion window regardless of this initial placement.
+        conclusion_t = total_duration - 3.0
+        for L in sorted(k for k in opt_rows if k != answer_opt):
+            segs = _option_strike_segments(L)
+            if segs:
+                temp_schedule.append({
+                    "action": "cross_out_word",
+                    "time": conclusion_t,
+                    "write_start": conclusion_t,
+                    "write_end": conclusion_t + 0.8,
+                    "target": L,
+                    "strike_lines": segs,
+                })
+                struck_options.add(L)
+                conclusion_t += 1.0
+
     # Pass 2: stretch text-writing durations to fill the spoken segment.
     stretch_actions = TEXT_ACTIONS + WRITE_ACTIONS
     for i, entry in enumerate(temp_schedule):
@@ -895,8 +927,11 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
                      if e["action"] not in ("underline_existing",) + ANSWER_ACTIONS]
     if len(teach_actions) >= 3 and min(e["write_start"] for e in teach_actions) > 0.55 * total_duration:
         ordered = sorted(teach_actions, key=lambda e: e["write_start"])
-        start = max(gate + 2.0, 0.32 * total_duration)
-        end = min(total_duration - 3.0, 0.82 * total_duration)
+        # Start writing shortly after the FIRST underline (not gated by the last
+        # underline), so workspace notes appear alongside reading — not 3 min later.
+        first_ul = min(underline_times) if underline_times else 0.0
+        start = max(first_ul + 15.0, 0.12 * total_duration)
+        end = min(total_duration - 3.0, 0.88 * total_duration)
         if end > start:
             span = end - start
             for k, e in enumerate(ordered):
