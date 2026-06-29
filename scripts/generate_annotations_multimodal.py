@@ -34,7 +34,7 @@ _AUDIO_MIME = {
 _IMAGE_MIME = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
 
 # Bump when the prompt/schema changes so stale cached responses are not reused.
-PROMPT_VERSION = "v23-chem-phys-math"
+PROMPT_VERSION = "v24-numerical-extractions"
 _CACHE_DIR = os.path.join("output", ".mm_cache")
 
 
@@ -256,10 +256,17 @@ Set a top-level "question_type" field to ONE of: "mcq", "assertion_reason",
 - "diagram_label": circle/annotate the named parts of the EXISTING printed figure;
   arrow to short explanations. Do NOT emit a `draw_diagram` — the figure is already
   there; only annotate it.
-- "numerical": underline only the key givens/asked term, then work the solution
-  as a sequence of `write_step` lines (given → formula → substitution → result),
-  each synced to when the teacher says it; finally mark_answer the matching option.
-  Every formula/equation must be a `write_step`, not `write_note`.
+- "numerical": as the teacher reads each key given value, emit both:
+    (a) an `underline_existing` on that term in the question, AND
+    (b) a `write_step` at the SAME timestamp extracting it as "Variable = value"
+        (e.g. underline "100 divisions on circular scale" at t=13s AND emit
+        write_step "N = 100" at t=13s; underline "pitch 1 mm" at t=46s AND emit
+        write_step "P = 1 mm" at t=46s; underline "5 divisions below the
+        reference line" at t=88s AND emit write_step "ZE type: +ve, n = 5").
+  This fills the reading phase with extracted data visible on the board.
+  Then continue with the full derivation: formula → substitution → result, each
+  write_step synced to when the teacher says it. Finally mark_answer the matching
+  option. Every formula/equation must be a `write_step`, not `write_note`.
 
 SUBJECT COVERAGE (the slide may be PHYSICS, CHEMISTRY, MATHS or BIOLOGY, in
 English or Hindi — handle every subject the same way; NEVER assume biology):

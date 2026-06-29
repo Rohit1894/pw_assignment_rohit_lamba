@@ -923,9 +923,19 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
     # If a generated timeline keeps the board mostly blank and bunches teaching
     # marks late, spread those non-answer actions through a usable teaching window.
     # The final answer mark is left for the conclusion and ordered below.
+    #
+    # GUARD: do NOT redistribute when Gemini already spread the actions across the
+    # explanation phase (span ≥ 25% of total). That means the timestamps ARE synced
+    # to the audio (e.g. a numerical question where the teacher spends 3 min reading
+    # then derives for 2 min at 181–280 s). Redistribution would move those steps to
+    # the reading phase, breaking sync and leaving the board static during explanation.
     teach_actions = [e for e in schedule
                      if e["action"] not in ("underline_existing",) + ANSWER_ACTIONS]
-    if len(teach_actions) >= 3 and min(e["write_start"] for e in teach_actions) > 0.55 * total_duration:
+    _teach_start = min(e["write_start"] for e in teach_actions) if teach_actions else 0.0
+    _teach_span = ((max(e["write_start"] for e in teach_actions) - _teach_start)
+                   if len(teach_actions) > 1 else 0.0)
+    _already_spread = _teach_span >= max(30.0, 0.25 * total_duration)
+    if len(teach_actions) >= 3 and _teach_start > 0.55 * total_duration and not _already_spread:
         ordered = sorted(teach_actions, key=lambda e: e["write_start"])
         # Start writing shortly after the FIRST underline (not gated by the last
         # underline), so workspace notes appear alongside reading — not 3 min later.
@@ -975,8 +985,15 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
             cued = [e for e in crosses if _has_cue(e) and e["write_start"] >= read_end]
             loose = sorted((e for e in crosses if e not in cued),
                            key=lambda e: e["write_start"])
+            # Crosses must come AFTER the last derivation step — a teacher never
+            # strikes an option before finishing the worked solution. Include the
+            # last write_step time so numerical questions with a long derivation
+            # (e.g. 181–280 s) don't fire crosses mid-solution at 55% of total.
+            _step_times = [e["write_start"] for e in schedule if e["action"] in WRITE_ACTIONS]
+            _last_step = max(_step_times, default=gate)
             win_start = max(read_end + 1.0, 0.55 * total_duration,
-                            max((e["write_start"] for e in cued), default=0.0) + 1.0)
+                            max((e["write_start"] for e in cued), default=0.0) + 1.0,
+                            _last_step + 0.5)
             win_start = min(win_start, max(read_end + 1.0, tail - 4.0))
             span = max(0.0, (tail - win_start) - 1.5)   # leave the final slot for the answer
             m = len(loose)
