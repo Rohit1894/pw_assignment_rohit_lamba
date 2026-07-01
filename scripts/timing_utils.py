@@ -25,6 +25,39 @@ def normalize_timeline(annotations, duration_hint=None, spacing=1.2, tail=3.0):
     annotations = [a for a in annotations if isinstance(a, dict) and "action" in a]
     for a in annotations:
         a["time"] = max(0.0, float(a.get("time", 0.0)))
+
+    # ── Collapse guard (Gemini timestamp glitch) ────────────────────────
+    # Gemini sometimes timestamps the FIRST part of the audio correctly and then
+    # COLLAPSES the remainder to ~1-2 s (a transcription glitch). The actions
+    # still arrive in correct TEACHING ORDER in the list, so a naive sort-by-time
+    # would yank the collapsed tail — typically the derivation and the final
+    # answer — to the front, spoiling the answer and inverting the logic. Detect
+    # a large BACKWARD jump in list order; if found, trust the leading run and
+    # re-derive the collapsed tail's timing from list order (spread between the
+    # last trustworthy time and the end of the audio). No-op on clean timelines.
+    if duration_hint and len(annotations) >= 3:
+        times = [a["time"] for a in annotations]
+        good_until = 0          # last index of the leading non-decreasing run
+        max_drop = 0.0
+        running_max = times[0]
+        for i in range(1, len(times)):
+            max_drop = max(max_drop, running_max - times[i])
+            if good_until == i - 1 and times[i] + 1e-6 >= times[good_until]:
+                good_until = i
+            running_max = max(running_max, times[i])
+        threshold = max(8.0, 0.2 * duration_hint)
+        if max_drop > threshold and good_until < len(annotations) - 1:
+            last_good = annotations[good_until]["time"]
+            start = last_good + spacing
+            end = max(start + spacing, duration_hint - tail)
+            tail_items = annotations[good_until + 1:]
+            m = len(tail_items)
+            for k, a in enumerate(tail_items):
+                a["time"] = start + (end - start) * (k + 1) / (m + 1)
+            print(f"  Gemini timeline collapsed (backward jump {max_drop:.0f}s "
+                  f"after {good_until + 1} good action(s)); re-derived tail "
+                  f"timing from action order")
+
     annotations.sort(key=lambda x: x["time"])
 
     if duration_hint and len(annotations) >= 3:

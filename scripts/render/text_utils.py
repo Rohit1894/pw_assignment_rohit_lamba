@@ -155,6 +155,36 @@ _VEC_RE   = re.compile(r'\\vec\s*\{([^}]*)\}')
 _HAT_RE   = re.compile(r'\\hat\s*\{([^}]*)\}')
 _BAR_RE   = re.compile(r'\\bar\s*\{([^}]*)\}')
 _DOT_RE   = re.compile(r'\\dot\s*\{([^}]*)\}')
+# Text-mode wrappers: keep only the inner content (the handwriting renderer has no
+# concept of a math/text mode switch, so "\text{ g}" should render as just " g").
+_TEXTMODE_RE = re.compile(
+    r'\\(?:text|textrm|textbf|textit|mathrm|mathbf|mathit|mathsf|operatorname)'
+    r'\s*\{([^}]*)\}')
+
+
+# ── Control-char un-corruption (Gemini single-backslash LaTeX) ────────────────
+# Gemini occasionally emits LaTeX with a SINGLE backslash inside its JSON string
+# ("\frac", "\text", "\times"). JSON then decodes that backslash+letter pair as a
+# C-style control character — "\frac" → FORM-FEED + "rac", "\text" → TAB + "ext",
+# "\times" → TAB + "imes" — which renders as a stray □ box glyph and also hides the
+# token from the \frac height-weighting in schedule.py. Reverse the decode: a
+# control char that JSON could only have produced from a backslash escape, when
+# immediately followed by a letter (the rest of a command), is restored to
+# "\<letter>" so the normal LaTeX expansion below can act on it. Genuine
+# form-feed/tab/CR never legitimately appear mid-equation, so this is safe.
+_CTRL_TO_BACKSLASH = {
+    "\x08": "\\b",   # \b…   e.g. \beta
+    "\x09": "\\t",   # \t…   e.g. \text, \times, \tan, \theta
+    "\x0a": "\\n",   # \n…   e.g. \nabla, \nu
+    "\x0c": "\\f",   # \f…   e.g. \frac
+    "\x0d": "\\r",   # \r…   e.g. \rho, \rightarrow
+}
+_CTRL_LATEX_RE = re.compile(r"[\x08\x09\x0a\x0c\x0d](?=[A-Za-z])")
+
+
+def _restore_backslash_latex(text):
+    """Undo JSON's control-char decode of single-backslash LaTeX commands."""
+    return _CTRL_LATEX_RE.sub(lambda m: _CTRL_TO_BACKSLASH[m.group(0)], text)
 
 
 def _expand_latex(text):
@@ -163,6 +193,8 @@ def _expand_latex(text):
     Called from _sanitize_text. \\frac is deliberately excluded — it is rendered
     as a stacked fraction by draw_math_equation_with_radicals.
     """
+    # Text-mode wrappers (\text{…}) unwrapped to their inner content first.
+    text = _TEXTMODE_RE.sub(lambda m: m.group(1), text)
     # Braced-argument commands first (regex), then simple string replacements.
     text = _SQRT_RE.sub(lambda m: f'√({m.group(1)})', text)     # √(expr)
     text = _VEC_RE.sub(lambda m: m.group(1) + '⃗', text)        # X + combining right-arrow above
@@ -262,6 +294,7 @@ def _sanitize_text(text):
     because its draw path falls back to a symbol font per missing glyph.
     """
     text = str(text or "")
+    text = _restore_backslash_latex(text)   # undo JSON-decoded single-\ LaTeX
     for bad, good in _GLYPH_FIXUPS_COMMON.items():
         text = text.replace(bad, good)
     if _contains_devanagari(text):

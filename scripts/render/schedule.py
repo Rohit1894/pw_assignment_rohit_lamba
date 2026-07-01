@@ -188,6 +188,110 @@ def _prune_notes(annotations):
     return pruned
 
 
+# Effective rendered height of a derivation line, in "plain-line" units. A \frac
+# stacks 3-6x taller than a text line depending on nesting depth and how many
+# fraction tokens it holds. ONE shared definition so the step-font auto-fit and the
+# overflow prune below agree on exactly how tall the worked solution is.
+_FRAC_WEIGHTS = {0: 1.0, 1: 3.0, 2: 5.0}
+
+
+def _step_weight(text):
+    st = _sanitize_text(text or "")
+    if "\\frac" in st:
+        depth = min(2, _frac_nesting_depth(st))
+        nf = st.count("\\frac")
+        return _FRAC_WEIGHTS[depth] * max(1.0, nf / 2.0)
+    return 1.0
+
+
+def _step_lhs(text):
+    """Normalised left-hand side (everything before the first '='), used to group a
+    derivation that re-states the same quantity line after line."""
+    st = _sanitize_text(text or "")
+    lhs = st.split("=", 1)[0]
+    return re.sub(r"\s+", "", lhs).lower()
+
+
+def _dedup_steps(annotations):
+    """Drop a write_step that EXACTLY repeats the previous derivation line (a
+    generation glitch — the same line emitted twice). Always safe: progressive
+    derivations differ line to line, so only byte-identical repeats are removed.
+    Anything resembling a real next step is left for the overflow-gated _fit_steps,
+    which only trims when the board physically can't hold the lines."""
+    drop = set()
+    last = None
+    for i, a in enumerate(annotations):
+        if a.get("action") != "write_step":
+            continue
+        cur = re.sub(r"\s+", "", _sanitize_text(a.get("text") or ""))
+        if cur and cur == last:
+            drop.add(i)
+        last = cur
+    if not drop:
+        return annotations
+    print(f"  Dropped {len(drop)} duplicate derivation step(s)")
+    return [a for k, a in enumerate(annotations) if k not in drop]
+
+
+def _fit_steps(annotations, avail_h, floor_fs=10, line_factor=1.4, pad_per_line=12):
+    """Guarantee the derivation FITS the board — the hard backstop that the old
+    'clamp the last line into frame with a few px overlap' fallback relied on.
+
+    GATED ON REAL OVERFLOW: if the full set already stacks inside the two workspace
+    columns at the floor font, it is returned UNCHANGED (so derivations that ship
+    fine — v2/v4 etc. — are byte-identical). Only when the lines genuinely can't fit
+    do we drop, in this priority:
+      1. Middle lines of a re-stated run (same LHS on >=3 lines): Gemini plugging
+         numbers in one at a time — the redundant substitutions, dropped from the
+         middle outward. The symbolic first line and final result are protected.
+      2. If still overflowing, any other non-protected line, heaviest first.
+    Protected throughout: the first and last step, and the first (symbolic) line of
+    every re-stated quantity — so a real progressive simplification is never gutted
+    unless space leaves no choice, and even then its formula + answer survive."""
+    idx = [i for i, a in enumerate(annotations) if a.get("action") == "write_step"]
+    if len(idx) < 3 or avail_h <= 0:
+        return annotations
+    per = floor_fs * line_factor + pad_per_line
+    weight = {i: _step_weight(annotations[i].get("text")) for i in idx}
+
+    def height(drop):
+        return sum(weight[i] for i in idx if i not in drop) * per
+
+    if height(set()) <= avail_h:
+        return annotations                      # fits at the floor font — leave it
+
+    # Group the steps into same-LHS runs (a quantity re-stated line after line).
+    runs, prev = [], object()
+    for i in idx:
+        lhs = _step_lhs(annotations[i].get("text"))
+        if lhs != prev:
+            runs.append([])
+            prev = lhs
+        runs[-1].append(i)
+
+    protected = {idx[0], idx[-1]}
+    for members in runs:
+        protected.add(members[0])               # symbolic formula of each quantity
+
+    tier1 = []                                  # redundant substitution middles
+    for members in runs:
+        if len(members) >= 3:
+            mid = (members[0] + members[-1]) / 2.0
+            tier1 += sorted(members[1:-1], key=lambda i: abs(i - mid))
+    tier2 = [i for i in idx if i not in protected and i not in tier1]
+    tier2.sort(key=lambda i: weight[i], reverse=True)
+
+    drop = set()
+    for i in tier1 + tier2:
+        if height(drop) <= avail_h:
+            break
+        drop.add(i)
+    if not drop:
+        return annotations
+    print(f"  Trimmed {len(drop)} intermediate derivation step(s) to fit the board")
+    return [a for k, a in enumerate(annotations) if k not in drop]
+
+
 # ── Animation schedule ──────────────────────────────────────────────────────
 def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
                     fonts=None, image_size=(1280, 720), pen=PEN_COLOR):
@@ -205,6 +309,7 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
     W, H = image_size
 
     annotations = _prune_notes(annotations)
+    annotations = _dedup_steps(annotations)
 
     font_body = fonts[0] if fonts else _find_font("body", 28)
     hindi_font = fonts[1] if fonts and len(fonts) > 1 else _find_hindi_font(30)
@@ -351,11 +456,63 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
                 answer_opt = _t
     struck_options = set()
 
+    # ── Overflow column geometry (computed up-front; the font-fit below needs its
+    # height). Bottom-left of frame, below the option block — used only when the
+    # right-margin column can't hold the whole derivation legibly on its own.
+    # `_ws_col` tracks which column is active. The top sits below the lowest
+    # left-side OCR box (covers the option-text extent, not just markers).
+    _BOTTOM_PAD = 12
+    _left_occ_bottoms = [b[3] for b in occupied if b[0] < ws_zone_x0 + 20]
+    if _left_occ_bottoms:
+        _ovf_y0 = int(max(_left_occ_bottoms)) + 20
+    elif option_positions:
+        _opt_all_pts = [p for pts in option_positions.values() for p in pts]
+        _ovf_y0 = int(max(p[1] for p in _opt_all_pts)) + 20
+    else:
+        _ovf_y0 = int(0.65 * H)
+    _ovf_y0 = min(_ovf_y0, H - 80)
+    _ovf_x0 = 24
+    _ovf_x1 = max(ws_zone_x0 - 20, 200)
+    _ovf_region_w = max(100, _ovf_x1 - _ovf_x0)
+    _ws_col = 0   # 0 = primary right column; 1 = overflow bottom-left column
+
     # Worked-solution workspace: size the step font/spacing so ALL derivation
-    # lines fit the available height (a long numerical solution shrinks to fit
-    # rather than overflowing off-screen).
+    # lines fit the space that ACTUALLY exists. Preferred outcome is a single
+    # right-margin column (one tidy top-to-bottom reading flow); only when the
+    # steps can't fit there at a legible size do we size to the right + bottom-left
+    # columns COMBINED, which keeps the final steps from clipping off the bottom.
+    right_avail_h = max(80, (H - _BOTTOM_PAD) - wy)
+    ovf_avail_h = max(0, (H - _BOTTOM_PAD) - _ovf_y0)
+    # Hard fit backstop: drop the least-essential intermediate steps if the
+    # derivation can't physically stack inside the two columns at the floor font.
+    # Runs BEFORE the font-fit so the size estimate and placement see the fitted set.
+    # Non-step actions (annotate_word, non-formula write_note) also consume right-column
+    # height — subtract their footprint so _fit_steps sees the true available space and
+    # prunes substitution-expansion steps before the last-resort clamp triggers.
+    # Items that consume workspace column space but are NOT write_steps and
+    # therefore not prunable by _fit_steps:
+    #   • annotate_word — placed in the right column via the note path
+    #   • write_note (formula-like) — converted to write_step at render time
+    #     but _fit_steps only counts action=="write_step", so it misses them
+    #   • write_note (non-formula) — may land in the workspace via _find_slot
+    # _fit_steps_overhead: subtract ALL of these so _fit_steps sees the true
+    #   available space for the prunable write_step actions.
+    # _non_step_items: only those NOT already counted by _is_workspace_write_action
+    #   (formula-like write_notes are already in effective_lines; annotate_word
+    #   and non-formula write_notes are not).
+    _fit_steps_overhead = sum(
+        1 for a in annotations
+        if a.get("action") in ("annotate_word", "write_note")
+    )
+    _non_step_items = sum(
+        1 for a in annotations
+        if a.get("action") == "annotate_word"
+        or (a.get("action") == "write_note"
+            and not _is_formula_like_text(a.get("text", "")))
+    )
+    _fit_steps_avail = (right_avail_h + ovf_avail_h) * 0.90 - _fit_steps_overhead * 30
+    annotations = _fit_steps(annotations, _fit_steps_avail, pad_per_line=16)
     n_steps = sum(1 for a in annotations if _is_workspace_write_action(a))
-    step_avail_h = max(80, ry2 - wy - 20)
     if n_steps > 0:
         # Weight each step by its expected rendered height. A \frac renders
         # 3–6× taller than a plain text line depending on nesting depth and how
@@ -372,8 +529,22 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
                     effective_lines += _FRAC_WEIGHTS[_depth] * max(1.0, _nf / 2.0)
                 else:
                     effective_lines += 1.0
-        per_line = step_avail_h / max(effective_lines, 1.0)
-        step_fs = int(max(13, min(int(font_body.size), (per_line - 12) / 1.4)))
+        effective_lines += _non_step_items
+        # Right column alone first; only fall back to right + overflow combined
+        # when the single column would force the font below a legible size.
+        _MIN_COMFORT_FS = 14
+        _fs_right = (right_avail_h / max(effective_lines, 1.0) - 12) / 1.4
+        if _fs_right >= _MIN_COMFORT_FS:
+            step_fs = int(max(_MIN_COMFORT_FS, min(int(font_body.size), _fs_right)))
+        else:
+            # Many steps for the space → size to the right + overflow columns
+            # combined, with ~10% packing headroom (real \frac descenders + per-line
+            # gaps run a little taller than the weighted estimate). A lower floor
+            # (10) is accepted here because a complete-but-small derivation beats one
+            # whose final steps clip off the bottom edge.
+            _avail = (right_avail_h + ovf_avail_h) * 0.90
+            _per_line = _avail / max(effective_lines, 1.0)
+            step_fs = int(max(10, min(int(font_body.size), (_per_line - 12) / 1.4)))
     else:
         step_fs = int(font_body.size)
     step_font = _sized_variant(font_body, step_fs)
@@ -393,23 +564,8 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
     step_hindi_font = _sized_variant(hindi_font, step_fs + 2)
     step_gap = max(6, int(step_fs * 0.45))
 
-    # Overflow column: bottom-left of frame below the option block. Used when
-    # the primary right-margin column fills up (many frac steps). The top is
-    # below the lowest left-side OCR box (covers option-text visual extent,
-    # not just the marker bounding box). `_ws_col` tracks which column is active.
-    _left_occ_bottoms = [b[3] for b in occupied if b[0] < ws_zone_x0 + 20]
-    if _left_occ_bottoms:
-        _ovf_y0 = int(max(_left_occ_bottoms)) + 20
-    elif option_positions:
-        _opt_all_pts = [p for pts in option_positions.values() for p in pts]
-        _ovf_y0 = int(max(p[1] for p in _opt_all_pts)) + 20
-    else:
-        _ovf_y0 = int(0.65 * H)
-    _ovf_y0 = min(_ovf_y0, H - 80)
-    _ovf_x0 = 24
-    _ovf_x1 = max(ws_zone_x0 - 20, 200)
-    _ovf_region_w = max(100, _ovf_x1 - _ovf_x0)
-    _ws_col = 0   # 0 = primary right column; 1 = overflow bottom-left column
+    # (Overflow column geometry _ovf_x0/_ovf_x1/_ovf_y0/_ws_col is computed
+    # above, before the font-fit, because the auto-fit needs the overflow height.)
 
     def _compute_diagram(spec, occ):
         """Lay a diagram spec into the larger clear region; return its layout dict."""
@@ -754,7 +910,7 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
                         bh = entry["line_height"]
                 clear_y, step_box = _next_clear_y(wx, wy, bw, bh, occupied, H, step_gap)
                 # Overflow: primary column full → move to bottom-left column.
-                if clear_y + bh > H - 8 and _ws_col == 0:
+                if clear_y + bh > H - _BOTTOM_PAD and _ws_col == 0:
                     _ws_col = 1
                     wx, wy = _ovf_x0, _ovf_y0
                     region_w = _ovf_region_w
@@ -771,6 +927,14 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
                     else:
                         bw = min(region_w, _mw2)
                     clear_y, step_box = _next_clear_y(wx, wy, bw, bh, occupied, H, step_gap)
+                # Last-resort in-frame clamp: never let a step render off the bottom
+                # edge. The combined-column font-fit should prevent this; if the
+                # estimate still overshoots on a very dense derivation, pull the line
+                # fully into frame even at the cost of a few px overlap with the line
+                # above — a complete, visible final step beats a clipped one.
+                if clear_y + bh > H - _BOTTOM_PAD:
+                    clear_y = max(0, H - _BOTTOM_PAD - bh)
+                    step_box = (step_box[0], clear_y, step_box[2], clear_y + bh)
                 entry["write_pos"] = (wx, clear_y)
                 occupied.append(step_box)
                 wy = clear_y + bh + step_gap
@@ -895,35 +1059,107 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
             e["write_start"] = gate
             e["write_end"] = gate + dur
 
-    # If a generated timeline keeps the board mostly blank and bunches teaching
-    # marks late, spread those non-answer actions through a usable teaching window.
-    # The final answer mark is left for the conclusion and ordered below.
+    # Pace the teaching marks so the board is never blank for a long hold and never
+    # dumps the whole solution in a rushed burst at the very end.
     #
-    # GUARD: do NOT redistribute when Gemini already spread the actions across the
-    # explanation phase (span ≥ 25% of total). That means the timestamps ARE synced
-    # to the audio (e.g. a numerical question where the teacher spends 3 min reading
-    # then derives for 2 min at 181–280 s). Redistribution would move those steps to
-    # the reading phase, breaking sync and leaving the board static during explanation.
+    # The old guard kept the model's raw times whenever their SPAN was wide — but a
+    # wide span is NOT an even spread. A lone early note plus a late cluster spans the
+    # whole video yet leaves the middle blank, which is exactly how a back-loaded
+    # audio renders: the teacher reads/explains for minutes, then every derivation
+    # step is matched into the final seconds. The span test passed, so the board sat
+    # static the whole time and then dumped the solution at the end.
+    #
+    # So we trigger on the DISTRIBUTION, not the span: if the board would sit static
+    # longer than a comfortable hold — a big blank lead-in before the first mark, OR
+    # a big gap between consecutive marks — re-space EVERY teaching mark evenly across
+    # the teaching window. A timeline that is already well synced has only small gaps,
+    # so its `max_hold` stays under the limit and it is left completely untouched.
     teach_actions = [e for e in schedule
                      if e["action"] not in ("underline_existing",) + ANSWER_ACTIONS]
-    _teach_start = min(e["write_start"] for e in teach_actions) if teach_actions else 0.0
-    _teach_span = ((max(e["write_start"] for e in teach_actions) - _teach_start)
-                   if len(teach_actions) > 1 else 0.0)
-    _already_spread = _teach_span >= max(30.0, 0.25 * total_duration)
-    if len(teach_actions) >= 3 and _teach_start > 0.55 * total_duration and not _already_spread:
+    if len(teach_actions) >= 3:
         ordered = sorted(teach_actions, key=lambda e: e["write_start"])
-        # Start writing shortly after the FIRST underline (not gated by the last
-        # underline), so workspace notes appear alongside reading — not 3 min later.
         first_ul = min(underline_times) if underline_times else 0.0
-        start = max(first_ul + 15.0, 0.12 * total_duration)
-        end = min(total_duration - 3.0, 0.88 * total_duration)
-        if end > start:
-            span = end - start
+        # Teaching window: opens once the stem has been read (so we never write over
+        # the teacher still reading the question) and closes before the conclusion.
+        # Anchor to the FIRST underline, NOT `gate`: gate is the cross-out/answer
+        # phase gate and inflates to mid-lecture whenever the only evaluative mark is
+        # a late answer (then every re-reading underline counts as "reading"). Using
+        # it here would collapse the window to the final seconds and cram everything.
+        win_start = max(first_ul + 12.0, 0.10 * total_duration)
+        times = [e["write_start"] for e in ordered]
+        # win_end closes before the conclusion, but must NEVER precede the last
+        # teaching anchor: a long derivation can legitimately run to ~97% of the clip,
+        # and clamping those final steps back to 0.90*total collapses them onto a
+        # single instant (overlapping ink, then a static tail). Extend the window to
+        # cover the real last step so anchored late steps keep their own slots.
+        win_end = min(total_duration - 3.0,
+                      max(0.90 * total_duration, max(times) + 0.5))
+        lead_in = times[0] - win_start                      # blank board before step 1
+        gaps = [times[k + 1] - times[k] for k in range(len(times) - 1)]
+        max_hold = max([lead_in] + gaps)
+        # Tolerate a natural pause; re-space only when a hold is long enough to read
+        # as "the video froze" — ~18% of the runtime, floored at 22 s for short clips.
+        hold_limit = max(22.0, 0.18 * total_duration)
+        if win_end > win_start and max_hold > hold_limit:
+            # (1) ANCHOR-AWARE re-spacing. The old code laid every step on a blind even
+            # grid, ignoring WHEN it is spoken — so a step the teacher says at 0:46
+            # could be written at 0:14, ~30 s early (the desync complaint). Instead,
+            # compute the even slot but CLAMP each step to a window around its audio
+            # anchor (its pre-spaced write_start = the matched spoken time): a step may
+            # appear at most EARLY_CAP before it is said, and at most LATE_CAP after.
+            # This still de-clusters bursts and pulls the timeline forward, but every
+            # mark stays in lip-sync with the narration instead of racing ahead of it.
+            span = win_end - win_start
+            anchors = list(times)                  # audio-aligned times, pre-mutation
+            early_cap = max(4.0, 0.04 * total_duration)   # how far AHEAD of speech allowed
+            late_cap = max(8.0, 0.08 * total_duration)    # writing a bit AFTER speech is fine
+            new_times = []
+            for k in range(len(ordered)):
+                slot = win_start + (span * k / max(1, len(ordered) - 1))
+                a = anchors[k]
+                new_times.append(min(max(slot, a - early_cap), a + late_cap))
+            # Preserve order with a minimum visible gap, never past the window end.
+            min_gap = 0.8
+            for k in range(1, len(new_times)):
+                if new_times[k] < new_times[k - 1] + min_gap:
+                    new_times[k] = new_times[k - 1] + min_gap
             for k, e in enumerate(ordered):
                 dur = max(0.7, e["write_end"] - e["write_start"])
-                nt = start + (span * k / max(1, len(ordered) - 1))
+                nt = min(new_times[k], win_end)
                 e["write_start"] = nt
                 e["write_end"] = nt + dur
+
+            # (2) FILL THE READING PHASE. With steps now anchored to their (later)
+            # spoken times, the lead-in is no longer papered over by dragging steps
+            # early — so it would sit blank again. Spread the stem underlines across
+            # the lead-in instead: the teacher is shown marking each given AS it is
+            # read, genuine in-sync activity that fills the gap WITHOUT desyncing the
+            # solution. Only the lead-in case needs this (a mid-solution gap doesn't),
+            # and the whole block is inside the blank-board trigger, so a healthy,
+            # well-synced video never reaches here and is left byte-identical.
+            if lead_in > hold_limit:
+                ul_ordered = sorted(
+                    (e for e in schedule if e["action"] == "underline_existing"),
+                    key=lambda e: e["write_start"])
+                if len(ul_ordered) >= 2:
+                    read_start = max(first_ul, 2.0)
+                    read_end = max(read_start + 4.0, new_times[0] - 1.5)
+                    rspan = read_end - read_start
+                    for k, e in enumerate(ul_ordered):
+                        d = max(0.6, e["write_end"] - e["write_start"])
+                        nt = read_start + (rspan * k / max(1, len(ul_ordered) - 1))
+                        e["write_start"] = nt
+                        e["write_end"] = nt + d
+
+            # Keep the answer mark strictly AFTER the (re-spaced) final step, so the
+            # circle never appears before the derivation that justifies it. Only push
+            # answers that are now too early; a correctly-late answer keeps its time.
+            last_step_end = max(e["write_end"] for e in ordered)
+            for e in schedule:
+                if e["action"] in ANSWER_ACTIONS and e["write_start"] < last_step_end + 1.0:
+                    d = max(0.7, e["write_end"] - e["write_start"])
+                    e["write_start"] = min(last_step_end + 1.0, total_duration - 1.0)
+                    e["write_end"] = e["write_start"] + d
 
     # ── Deterministic order for option-elimination marks ──────────────────────
     # Gemini frequently FRONT-LOADS the answer + cross-outs to the very start (it

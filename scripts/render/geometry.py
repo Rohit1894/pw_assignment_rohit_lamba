@@ -122,7 +122,14 @@ def _find_slot(W, H, w, h, occupied, rng, top_band, anchor=None, x_lo=16, tidy=F
                 return box, False  # placed in-place, no arrow needed
 
     step = 26
-    xs = list(range(int(x_lo), max(int(x_lo) + 1, W - w - 16), step))
+    # Rightmost start that still keeps the whole block in-frame. If the requested
+    # column start (x_lo) sits so far right that a block of width `w` would spill off
+    # the right edge, shift the scan left so it fits — otherwise the only candidate
+    # emitted is x_lo itself and the block clips (a wide note in a narrow right-margin
+    # column). _boxes_overlap still rejects positions that would collide on the left.
+    x_hi = max(16, W - w - 16)
+    x_start = min(int(x_lo), x_hi)
+    xs = list(range(x_start, x_hi + 1, step))
     ys = list(range(top_band, max(top_band + 1, H - h - 14), step))
     if tidy:
         grid = [(x, y) for x in xs for y in ys]   # column-major → tidy top-down stack

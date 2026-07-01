@@ -33,8 +33,22 @@ from generate_annotations_multimodal import generate_annotations_multimodal
 from render_video import render_video
 
 
-def _prefer_whisper_sync(question_text, language):
-    """Use Whisper sync for English/Latin slides; Gemini transcript for Hindi."""
+def _prefer_whisper_sync(question_text, language, sync_source="auto"):
+    """
+    Decide whether to sync against Whisper word-timestamps (vs the Gemini
+    timestamped transcript).
+
+    `sync_source` is the explicit guard for the (A) routing prototype:
+      - "whisper" / "gemini": force that source regardless of slide text.
+      - "auto" (default): UNCHANGED legacy behaviour \u2014 Whisper for English/Latin
+        slides, Gemini transcript for Devanagari slides. Note this judges by the
+        SLIDE text, so an English slide with HINDI narration still picks Whisper;
+        pass --sync-source gemini to override that for Hindi-audio clips.
+    """
+    if sync_source == "whisper":
+        return True
+    if sync_source == "gemini":
+        return False
     if language:
         lang = str(language).lower()
         return lang.startswith("en")
@@ -94,6 +108,14 @@ def main():
                              "re-timed to the exact moment each action's phrase is "
                              "spoken (fixes annotations appearing before/after the "
                              "narration). Use this to skip Whisper for speed.")
+    parser.add_argument("--sync-source", default="auto",
+                        choices=["auto", "whisper", "gemini"],
+                        help="Which transcript drives audio sync. 'auto' (default) "
+                             "picks Whisper for English/Latin slides and the Gemini "
+                             "timestamped transcript for Devanagari slides — current "
+                             "behaviour, unchanged. 'gemini' FORCES the decoded Gemini "
+                             "transcript (better for Hindi NARRATION even when the slide "
+                             "is English; PROTOTYPE). 'whisper' forces Whisper.")
     parser.add_argument("--no-validate", action="store_true",
                         help="Skip the pre-render validation gate. By default a bad "
                              "annotation set (blank, wrong-subject, no answer marked) "
@@ -174,29 +196,38 @@ def main():
     if used_engine == "gemini" and not args.no_sync:
         import json as _json
         try:
-            from align_timeline import load_words, load_gemini_words, align_annotations
+            from align_timeline import load_words, load_gemini_words, align_best
             # Prefer Gemini's own timestamped transcript (it transcribes Hindi far
             # better than Whisper on noisy lecture audio); fall back to a Whisper
             # word-timestamp transcript only if Gemini didn't supply one.
             gt_path = os.path.splitext(args.annotations)[0] + ".gtrans.json"
-            if _prefer_whisper_sync(question_text, args.language):
+            sources = []
+            if _prefer_whisper_sync(question_text, args.language, args.sync_source):
                 if not (args.skip_transcribe and os.path.exists(args.transcript)):
                     print("  Transcribing for English sync (Whisper word timestamps)...")
                     transcribe_audio(args.audio, args.transcript, args.whisper_model,
                                      args.language or "en", initial_prompt=question_text)
-                words = load_words(args.transcript)
+                sources.append(("whisper", load_words(args.transcript)))
+                # Fallback candidate (auto mode only): Gemini's own transcript. An
+                # English SLIDE can still have HINDI narration, whose spoken_cues
+                # don't match an English Whisper transcript and collapse into an
+                # early burst. align_best keeps Whisper unless that alignment is
+                # actually broken AND Gemini's transcript aligns clearly better — so
+                # well-synced English videos are unchanged, at no extra ASR cost.
+                if args.sync_source == "auto" and os.path.exists(gt_path):
+                    sources.append(("gemini", load_gemini_words(gt_path, duration=audio_duration)))
             elif os.path.exists(gt_path):
                 print("  Syncing to Gemini timestamped transcript...")
-                words = load_gemini_words(gt_path, duration=audio_duration)
+                sources.append(("gemini", load_gemini_words(gt_path, duration=audio_duration)))
             else:
                 if not (args.skip_transcribe and os.path.exists(args.transcript)):
                     print("  Transcribing for sync (Whisper word timestamps)...")
                     transcribe_audio(args.audio, args.transcript, args.whisper_model,
                                      args.language, initial_prompt=question_text)
-                words = load_words(args.transcript)
+                sources.append(("whisper", load_words(args.transcript)))
             with open(args.annotations, encoding="utf-8") as f:
                 _anns = _json.load(f)
-            _anns = align_annotations(_anns, words, duration=audio_duration)
+            _anns = align_best(_anns, sources, duration=audio_duration)
             with open(args.annotations, "w", encoding="utf-8") as f:
                 _json.dump(_anns, f, indent=2, ensure_ascii=False)
         except Exception as e:

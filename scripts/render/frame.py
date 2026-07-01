@@ -6,6 +6,7 @@ render entry point; render_video.py re-exports render_video() from here.
 Extracted from render_video.py (Step 5 refactor)."""
 
 import json
+import math
 import random
 
 import numpy as np
@@ -48,6 +49,71 @@ def get_substring_bounds(elem, target_substring):
     
     # y coordinates remain the same
     return sub_x1, elem.y1, sub_x2, elem.y2
+
+
+# ── Idle "alive" cue during long teaching pauses (Fix C) ─────────────────────
+# When the timeline has a long static hold — the teacher explaining a result
+# verbally before writing the next line — the board would otherwise sit on a
+# frozen frame. We draw a subtle, pulsing cursor where the pen last rested, so the
+# pause reads as "paused, thinking" rather than "the video froze". It adds NO
+# content (nothing that could be wrong) and is GATED to long holds, so normally
+# paced videos render byte-identical. The pulse is a pure function of t (sine, no
+# RNG), preserving frame determinism.
+IDLE_HOLD_MIN = 22.0      # only fill holds longer than this — matches schedule.py's
+                          # "comfortable hold" floor, so the regular ~20 s step cadence
+                          # stays cleanly static and only a genuinely long pause is marked
+IDLE_EDGE_FADE = 2.5      # ease the cue in/out at the hold's two ends (seconds)
+IDLE_PERIOD = 1.15        # blink period (seconds)
+
+
+def _action_rest_point(action):
+    """Where the pen comes to rest after finishing `action` — the end of its last
+    stroke. Used to park the idle cursor on the most recently written content."""
+    lay = action.get("text_layout")
+    wp = action.get("write_pos")
+    if lay and wp:
+        return (wp[0] + lay.get("block_w", 0), wp[1] + lay.get("block_h", 0))
+    if wp:
+        return (wp[0] + 40, wp[1] + 18)
+    for key in ("underline_params", "cross_params", "ellipse_params",
+                "answer_ring", "arrow_params"):
+        p = action.get(key)
+        if p and len(p) >= 4:
+            return (p[2], p[3])
+    return None
+
+
+def _draw_idle_cue(draw, schedule, t, pen):
+    """Draw the subtle resting-cursor during a long mid-solution hold (see above)."""
+    last_end, last_act, next_start = None, None, None
+    for a in schedule:
+        s, e = a["write_start"], a["write_end"]
+        if s <= t < e:
+            return                      # something is being drawn — that IS the motion
+        if e <= t:
+            if last_end is None or e > last_end:
+                last_end, last_act = e, a
+        elif s > t:
+            if next_start is None or s < next_start:
+                next_start = s
+    if last_act is None or next_start is None:
+        return                          # lead-in or final tail: nothing to rest on
+    if next_start - last_end < IDLE_HOLD_MIN:
+        return                          # a normal pause — leave it static (byte-identical)
+    into, remain = t - last_end, next_start - t
+    edge = 1.0
+    if into < IDLE_EDGE_FADE or remain < IDLE_EDGE_FADE:
+        edge = max(0.0, min(into, remain) / IDLE_EDGE_FADE)
+    pulse = 0.5 + 0.5 * math.sin(2 * math.pi * into / IDLE_PERIOD)
+    alpha = int((55 + 90 * pulse) * edge)       # subtle ~55..145, fades fully in/out (no pop)
+    if alpha <= 6:
+        return
+    pt = _action_rest_point(last_act)
+    if not pt:
+        return
+    x, y = int(pt[0]) + 6, int(pt[1])
+    col = (pen[0], pen[1], pen[2], alpha)
+    draw.line([(x, y - 19), (x, y - 2)], fill=col, width=max(2, PEN_WIDTH - 1))
 
 
 # ── Frame renderer ──────────────────────────────────────────────────────────
@@ -178,6 +244,7 @@ def _render_frame_at(t, background, schedule, fonts, pen=PEN_COLOR):
                 p = action["tick_params"]
                 _draw_progressive_diagonal_slash(draw, p[0], p[1], p[2], p[3], progress, PEN_WIDTH, ANSWER_INK)
 
+    _draw_idle_cue(draw, schedule, t, pen)
     return np.array(frame)
 
 
