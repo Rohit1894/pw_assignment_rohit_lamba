@@ -1,18 +1,16 @@
 # Streamlit Community Cloud deploy set. Auto-detected by Streamlit Cloud.
 #
-# CPU-only torch: EasyOCR depends on torch. WITHOUT the CPU index line below,
-# pip installs the ~2 GB CUDA build and the free-tier install FAILS
-# ("Error installing requirements"). This pulls the small CPU wheels instead.
+# torch MUST be the CPU build. `--extra-index-url` alone is NOT enough — pip
+# still picks the newer CUDA wheel from PyPI. The explicit `+cpu` local version
+# below is only available on the PyTorch CPU index, so it forces the small CPU
+# wheels and the free-tier install stops failing.
 --extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1+cpu
+torchvision==0.20.1+cpu
 
-# Whisper is intentionally omitted (app force-skips it; saves ~500 MB RAM).
-# pandas/openpyxl omitted too — only used by the offline rename utility, not the
-# video pipeline. Full local set with everything: requirements-local.txt.
-# Pins loosened so wheels resolve on Streamlit Cloud's Python (3.12/3.13),
-# not your local Python 3.14.
+# Whisper omitted (app force-skips it, saves ~500 MB). pandas/openpyxl omitted
+# (offline utility only). Full local set: requirements-local.txt.
 streamlit
-torch
-torchvision
 easyocr
 opencv-python-headless
 moviepy
