@@ -1,17 +1,22 @@
 # Streamlit Community Cloud deploy set. Auto-detected by Streamlit Cloud.
-# Whisper (openai-whisper) is intentionally OMITTED — it needs ~500 MB extra RAM
-# that the free tier lacks, and the app force-skips it (SKIP_WHISPER). For full
-# local development WITH Whisper, use requirements-local.txt instead.
 #
-# NOTE: easyocr still pulls in torch, which is the heavy dependency here. If the
-# free 1 GB tier OOMs during OCR, that's the cause — see DEPLOY_STREAMLIT.md.
-streamlit==1.40.2
-easyocr==1.7.2
-opencv-python-headless==4.13.0.92
-moviepy==2.2.1
-Pillow==11.3.0
-google-genai==2.8.0
-numpy==2.4.6
-openpyxl==3.1.5
-pandas==3.0.3
-sarvamai==0.1.28
+# CPU-only torch: EasyOCR depends on torch. WITHOUT the CPU index line below,
+# pip installs the ~2 GB CUDA build and the free-tier install FAILS
+# ("Error installing requirements"). This pulls the small CPU wheels instead.
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# Whisper is intentionally omitted (app force-skips it; saves ~500 MB RAM).
+# pandas/openpyxl omitted too — only used by the offline rename utility, not the
+# video pipeline. Full local set with everything: requirements-local.txt.
+# Pins loosened so wheels resolve on Streamlit Cloud's Python (3.12/3.13),
+# not your local Python 3.14.
+streamlit
+torch
+torchvision
+easyocr
+opencv-python-headless
+moviepy
+Pillow
+google-genai
+numpy<2.3
+sarvamai
