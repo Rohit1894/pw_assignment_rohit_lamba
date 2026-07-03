@@ -116,6 +116,22 @@ def _draw_idle_cue(draw, schedule, t, pen):
     draw.line([(x, y - 19), (x, y - 2)], fill=col, width=max(2, PEN_WIDTH - 1))
 
 
+def _draw_answer_box(draw, box, progress):
+    """Trace a hand-drawn rectangle around the final answer line, side by side
+    (top → right → bottom → left) as `progress` runs 0..1. Green answer ink."""
+    x1, y1, x2, y2 = box
+    sides = (((x1, y1), (x2, y1)), ((x2, y1), (x2, y2)),
+             ((x2, y2), (x1, y2)), ((x1, y2), (x1, y1)))
+    total = max(0.0, min(1.0, progress)) * 4
+    for i, (a, b) in enumerate(sides):
+        p = max(0.0, min(1.0, total - i))
+        if p <= 0:
+            break
+        ex = a[0] + (b[0] - a[0]) * p
+        ey = a[1] + (b[1] - a[1]) * p
+        _draw_handwritten_line(draw, a[0], a[1], ex, ey, PEN_WIDTH, ANSWER_INK)
+
+
 # ── Frame renderer ──────────────────────────────────────────────────────────
 def _render_frame_at(t, background, schedule, fonts, pen=PEN_COLOR):
     """
@@ -131,6 +147,12 @@ def _render_frame_at(t, background, schedule, fonts, pen=PEN_COLOR):
     for idx, action in enumerate(schedule):
         start = action["write_start"]
         if t < start:
+            continue
+        # Page turn: once the next storyboard page starts writing, the previous
+        # page's worked-solution writing is wiped off the board (the question
+        # background remains). Skipping the draw reveals the now-blank zone.
+        wipe_after = action.get("_wipe_after")
+        if wipe_after is not None and t >= wipe_after:
             continue
         action_type = action["action"]
         end = action["write_end"]
@@ -194,6 +216,11 @@ def _render_frame_at(t, background, schedule, fonts, pen=PEN_COLOR):
                 wx, wy = action["write_pos"]
                 step_fnt = action.get("render_font") or font_body
                 draw_math_equation_with_radicals(draw, wx, wy, partial_text, step_fnt, pen)
+            # Green hand-drawn box around the final-answer line (auto-audio
+            # whiteboard mode), traced after the text itself has been written.
+            ab = action.get("answer_box")
+            if ab and progress >= 0.82:
+                _draw_answer_box(draw, ab, min(1.0, (progress - 0.82) / 0.18))
 
         elif action_type == "draw_arrow":
             p = action.get("arrow_params")
@@ -267,17 +294,34 @@ def _resolve_ink(ink):
 # ── Video assembly ──────────────────────────────────────────────────────────
 def render_video(image_path, annotations_path, audio_path, output_path,
                  option_positions=None, question_bbox=None, enriched_ocr=None,
-                 ink="red"):
+                 ink="red", layout_path=None, mode=None):
     """
     Build the final video with teacher actions drawn directly on the image background.
 
     `ink` sets the annotation colour ("red" by default, matching the reference
     teacher video; also "black"/"blue"/"green" or an (r,g,b) tuple).
+
+    Whiteboard-storyboard mode (auto-audio pipeline): pass the composed canvas
+    as `image_path`, `mode="whiteboard_storyboard"` and `layout_path` pointing
+    at layout.json — the solution zone from the layout then constrains where
+    all step writing goes, keeping the question (left) and solution (right)
+    areas cleanly separated. Classic image+audio mode is unchanged.
     """
     if option_positions is None:
         option_positions = {}
     if enriched_ocr is None:
         enriched_ocr = {}
+
+    if mode == "whiteboard_storyboard" and layout_path:
+        try:
+            with open(layout_path, encoding="utf-8") as f:
+                _layout = json.load(f)
+            zone = _layout.get("solution_zone")
+            if zone:
+                enriched_ocr = dict(enriched_ocr)
+                enriched_ocr["workspace_zone"] = zone
+        except Exception as e:
+            print(f"  layout load failed ({e}); using OCR-derived workspace")
 
     pen = _resolve_ink(ink)
     print(f"  Annotation ink: {ink} {pen}")

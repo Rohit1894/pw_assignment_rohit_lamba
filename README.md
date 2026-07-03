@@ -15,6 +15,7 @@ An automated pipeline that transforms a **question image** and **audio narration
   - [Step 2 — OCR Question Extraction](#step-2--ocr-question-extraction-ocr_questionpy)
   - [Step 3 — Annotation Generation](#step-3--annotation-generation-generate_annotationspy)
   - [Step 4 — Video Rendering](#step-4--video-rendering-render_videopy)
+- [Image-only Hinglish video generation](#image-only-hinglish-video-generation---auto-audio)
 - [Bonus: Rename Questions Utility](#bonus-rename-questions-utility)
 - [Evaluation Harness](#evaluation-harness-scriptseval_corpuspy)
 - [Output Files](#output-files)
@@ -415,6 +416,184 @@ All annotations are drawn directly on the original question image (resolution re
 - **Radical, Fraction & Subscript Rendering** (`render/text_render.py`): Draws the square root (`√`) sign as smooth hand-drawn lines spanning its argument; **stacks fractions** written as `\frac{num}{den}` (numerator over a bar over denominator); and maps sub/superscripts (`₂`, `²`) to smaller, shifted glyphs — so equations render correctly in the handwriting style without empty-box glyphs. Greek letters and operators the handwriting font lacks fall back to a symbol font per glyph.
 
 **Output:** 24 FPS MP4 with synced audio (libx264 + AAC)
+
+---
+
+## Image-only Hinglish video generation (`--auto-audio`)
+
+**Give the system ONLY a question image — it generates everything else:** the
+correct solution, a Hinglish teacher-style explanation, Sarvam TTS narration,
+step-by-step board writing, and the final MP4. The classic image + audio
+pipeline above is unchanged; this is a separate, optional mode.
+
+### API keys via `.env` (recommended)
+
+Copy `.env.example` to `.env` in the project root and fill in your keys:
+
+```ini
+GEMINI_API_KEY=your_gemini_key
+SARVAM_API_KEY=your_sarvam_key
+```
+
+The `.env` file is gitignored and loaded automatically by `main.py` (and by the
+individual scripts when run standalone). Shell environment variables always
+take precedence over `.env` values, so the explicit `$env:`/`export` commands
+below also still work.
+
+### Run it
+
+PowerShell:
+
+```powershell
+$env:GEMINI_API_KEY="your_gemini_key"
+$env:SARVAM_API_KEY="your_sarvam_key"
+python main.py --image input/question.png --auto-audio --language hinglish --tts-provider sarvam --output output/final.mp4
+```
+
+CMD:
+
+```bat
+set GEMINI_API_KEY=your_gemini_key
+set SARVAM_API_KEY=your_sarvam_key
+python main.py --image input/question.png --auto-audio --language hinglish --tts-provider sarvam --output output/final.mp4
+```
+
+Linux/macOS:
+
+```bash
+export GEMINI_API_KEY="your_gemini_key"
+export SARVAM_API_KEY="your_sarvam_key"
+python main.py --image input/question.png --auto-audio --language hinglish --tts-provider sarvam --output output/final.mp4
+```
+
+### How the auto pipeline works (storyboard-based)
+
+```
+input/question.png
+   │ 1. prepare_canvas        → 1280x720 whiteboard: question LEFT, solution area RIGHT   (layout.json)
+   │ 2. understand_question   → Gemini Vision (semantics) + EasyOCR (exact text boxes)    (question_understanding.json)
+   │ 3. solve_question        → canonical, clean solution (source of truth)               (canonical_solution.json)
+   │ 4. verify_solution       → sympy arithmetic tripwire + independent Gemini re-solve   (solution_verification.json)
+   │      ✗ disagreement → STOP (no video from an unverified answer; --allow-unverified for testing only)
+   │ 5. generate_storyboard   → one short board_lines array + Hinglish narration per step   (storyboard.json)
+   │ 5.5 layout_engine        → measure every line, detect overflow, auto-paginate           (layout_validation.json, layout_plan.json)
+   │ 5.6 font_glyph_checker   → check every symbol can be rendered; fallback/substitute      (glyph_report.json)
+   │ 5.7 pronunciation_manager→ upload custom dict to Sarvam; cache dict_id                  (config/sarvam_dict_id.json)
+   │ 6. generate_audio_sarvam → Sarvam TTS PER STEP (bulbul:v3, hi-IN); concat segments     (auto_narration.wav + audio_manifest.json)
+   │ 7. transcribe            → Whisper on generated audio — timing REFINEMENT only
+   │ 8. build_timeline        → annotation times from audio segment starts/durations         (auto_annotations.json)
+   │ 9. validate_output (pre) → narration/audio/timing/board_lines/glyph checks             (validation_report.json, quality_score.json)
+   │10. render_video          → whiteboard mode: steps stack in solution zone, final
+   │                            answer boxed, correct option ringed on the question
+   │11. create_contact_sheet  → 8 sampled frames for visual QA                              (contact_sheet.jpg)
+   └─→ output/final.mp4
+```
+
+Key properties:
+
+- **Timing comes from audio, not fuzzy matching.** Each storyboard step gets its
+  own Sarvam segment; the measured segment durations ARE the timeline. Whisper
+  only nudges a step start within ±1 s. Annotations carry `"exact": true` so the
+  renderer's pacing heuristics (built for fuzzy Gemini timelines) leave them alone.
+- **Hinglish, twice.** Every step has `display_narration_roman` (Roman Hinglish
+  for logs/subtitles) and `tts_narration_text` (mixed-script: Hindi words in
+  Devanagari, English/science terms in Latin) — fully romanised Hindi degrades
+  Indic TTS quality, so Sarvam gets the mixed-script field.
+- **The board can't lie.** Board lines come only from the canonical solution;
+  Gemini writes the narration around them, not the math itself.
+- **Target duration** defaults to 75 s (60–90 s for a normal question; longer
+  questions scale up, capped well under 3 min).
+
+### Auto-mode CLI flags
+
+| Flag                 | Default                     | Description                                          |
+|----------------------|-----------------------------|------------------------------------------------------|
+| `--auto-audio`       | off                         | Enable the image-only mode                           |
+| `--language`         | `hinglish`                  | Teaching language for the narration                  |
+| `--tts-provider`     | `sarvam`                    | TTS provider (only Sarvam supported)                 |
+| `--sarvam-speaker`   | `shubh`                     | Sarvam voice. Run `voice_benchmark_sarvam.py` to compare |
+| `--sarvam-dict-id`   | *(auto)*                    | Sarvam pronunciation dict ID (auto-created from `config/pronunciation_dictionary.json`) |
+| `--tts-pace`         | `0.92`                      | Speaking pace (slightly slower = teacher-like)       |
+| `--target-duration`  | `75`                        | Target narration length in seconds                   |
+| `--allow-unverified` | off                         | Continue past a failed verification (testing only)   |
+| `--auto-layout`      | on                          | Auto-detect layout mode (two_column / top_bottom / question_first) |
+| `--resolution`       | `1280x720`                  | Output resolution (only 1280x720 fully supported)    |
+| `--auto-script`      | `output/storyboard.json`    | Storyboard path                                      |
+| `--auto-audio-path`  | `output/auto_narration.wav` | Combined narration path                              |
+| `--layout`           | `output/layout.json`        | Whiteboard layout metadata path                      |
+| `--contact-sheet`    | `output/contact_sheet.jpg`  | QA contact sheet path                                |
+
+### Auto-mode output files
+
+```
+output/layout.json                  whiteboard zones (question/solution)
+output/canvas.png                   composed 1280x720 board (render background)
+output/question_understanding.json  Gemini Vision + OCR question analysis
+output/canonical_solution.json      the verified solution (source of truth)
+output/solution_verification.json   verifier verdict + confidence + issues
+output/storyboard.json              per-step board actions + Hinglish narration
+output/audio_segments/s*.wav        one Sarvam segment per storyboard step
+output/audio_manifest.json          exact per-segment timings
+output/auto_narration.wav           concatenated narration track
+output/auto_transcript.json         Whisper transcript of the narration (refinement)
+output/auto_annotations.json        final timed annotations
+output/layout_validation.json       layout fit check (font size, pages, overflow)
+output/layout_plan.json             per-page split (multi-page questions only)
+output/glyph_report.json            symbol/font safety report
+output/validation_report.json       pre- and post-render validation results
+output/quality_score.json           heuristic quality rubric (correctness/readability/pacing)
+output/contact_sheet.jpg            8-frame visual QA sheet
+output/final.mp4                    the video
+output/test_manifest.json           test case checklist for 7 question types
+```
+
+### Voice benchmark
+
+Before your first production run, listen to a few voices and choose the best one:
+
+```powershell
+# Generate samples for all candidate voices
+.venv\Scripts\python.exe scripts\voice_benchmark_sarvam.py --language hinglish --pace 0.92
+
+# Generate for specific voices only
+.venv\Scripts\python.exe scripts\voice_benchmark_sarvam.py --speakers shubh,ritu,priya --pace 0.92
+```
+
+Outputs to `output/voice_tests/<speaker>/sample_*.wav` + `report.md`. Fill in
+`voice_score_template.csv` by ear and set your preferred speaker with `--sarvam-speaker`.
+
+### Pronunciation dictionary
+
+`config/pronunciation_dictionary.json` holds Sarvam-friendly pronunciations for
+technical words (velocity → वेलॉसिटी, kinematics → काइनेमैटिक्स, etc.). The
+pipeline uploads this to Sarvam automatically and caches the `dict_id` in
+`config/sarvam_dict_id.json`. Edit the JSON to add subject-specific words; the
+next run re-uploads if you pass `--sarvam-dict-id ""` or delete the cached file.
+
+### Test cases
+
+Run all seven question-type tests (fill in your own image paths):
+
+```powershell
+# Physics numerical
+.venv\Scripts\python.exe main.py --image input\phytestimg\phytestimg3.png --auto-audio --output output\tc02_final.mp4
+
+# Theory MCQ with --allow-unverified
+.venv\Scripts\python.exe main.py --image input\phytestimg\phytestimg2.png --auto-audio --allow-unverified --output output\tc01_final.mp4
+
+# Long question (increase target duration)
+.venv\Scripts\python.exe main.py --image input\phytestimg\phytestimg4.png --auto-audio --target-duration 100 --output output\tc03_final.mp4
+```
+
+See `output/test_manifest.json` for all 7 test commands and result tracking fields.
+```
+
+### Environment variables (auto mode)
+
+| Variable | Purpose |
+|----------|---------|
+| `GEMINI_API_KEY` / `GOOGLE_API_KEY` | Question understanding, solving, verification, storyboard narration |
+| `SARVAM_API_KEY` | Sarvam TTS (bulbul:v3) — get one at https://dashboard.sarvam.ai |
 
 ---
 

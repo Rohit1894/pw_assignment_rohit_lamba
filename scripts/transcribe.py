@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
-"""Transcribe audio to JSON with word-level timestamps using OpenAI Whisper."""
+"""Transcribe audio to JSON with word-level timestamps using OpenAI Whisper.
 
-import whisper
+Whisper (and its torch backend + model weights) is imported LAZILY inside
+transcribe_audio, not at module load. This lets the rest of the pipeline import
+this module for free on memory-constrained hosts (e.g. Streamlit Cloud's ~1 GB
+tier) when transcription is skipped — see main.py's --skip-whisper / SKIP_WHISPER.
+"""
+
 import json
 import sys
 
@@ -23,6 +28,7 @@ def transcribe_audio(audio_path, output_path, model_size="base", language=None,
                   Whisper biases its vocabulary toward these words, which sharpens
                   domain terms (e.g. हार्मोन, अपरा, hCG) and their timing.
     """
+    import whisper  # lazy: pulls in torch + weights only when actually transcribing
     print(f"  Loading Whisper '{model_size}' model...")
     model = whisper.load_model(model_size)
 

@@ -311,6 +311,13 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
     annotations = _prune_notes(annotations)
     annotations = _dedup_steps(annotations)
 
+    # Storyboard timelines (auto-audio mode) carry "exact": true — their times
+    # come from measured per-step audio segment durations, so the pacing
+    # heuristics below (phase gate, blank-hold re-spacing, elimination
+    # re-ordering — all built for fuzzy Gemini timelines) must not move them.
+    exact_mode = bool(annotations) and all(
+        a.get("exact") for a in annotations if isinstance(a, dict))
+
     font_body = fonts[0] if fonts else _find_font("body", 28)
     hindi_font = fonts[1] if fonts and len(fonts) > 1 else _find_hindi_font(30)
     _measure_img = Image.new("RGB", (10, 10))
@@ -381,8 +388,28 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
     wx = rx1 + 25
     wy = max(ry1 + 30, 150)
     region_w = max(200, (rx2 - rx1) - 50)
+
+    # Whiteboard-storyboard mode: the caller supplies the solution zone
+    # explicitly (layout.json) instead of deriving the workspace from OCR.
+    # All step writing then stays inside that zone. Absent the key, nothing
+    # changes for the classic image+audio mode.
+    forced_zone = (enriched_ocr or {}).get("workspace_zone")
+    if forced_zone and len(forced_zone) == 4:
+        rx1, ry1, rx2, ry2 = (int(v) for v in forced_zone)
+        wx = rx1 + 10
+        wy = ry1 + 10
+        region_w = max(200, (rx2 - rx1) - 30)
+        ws_zone_x0 = rx1
+        print(f"  Workspace forced to solution zone: {forced_zone}")
     fallback_y = max(200, int(H * 0.55))  # bottom fallback when no slot fits
     ph_legend = {"x": None, "y": None}    # running cursor for the fill-in legend
+
+    # Page-turn support: snapshot the primary-column cursor so that when a new
+    # storyboard page begins the writing restarts at the TOP of the solution zone
+    # (in the wide primary column) instead of continuing to stack every page into
+    # one ever-growing column. That endless stacking is what overflowed into the
+    # bottom-left overflow column and produced two derivations superimposed.
+    _page_wx0, _page_wy0, _page_region_w0 = wx, wy, region_w
 
     # Per-statement ✓/✗ column for statement-evaluation / "how many are correct"
     # questions. Reconstructed ONCE from OCR geometry + Gemini box_2d order so that
@@ -522,13 +549,17 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
         effective_lines = 0.0
         for _a in annotations:
             if _is_workspace_write_action(_a):
-                _st = _sanitize_text(_a.get("text", ""))
-                if "\\frac" in _st:
-                    _depth = min(2, _frac_nesting_depth(_st))
-                    _nf = _st.count("\\frac")
-                    effective_lines += _FRAC_WEIGHTS[_depth] * max(1.0, _nf / 2.0)
+                _bl = _a.get("board_lines") or []
+                if _bl:
+                    effective_lines += float(len(_bl))
                 else:
-                    effective_lines += 1.0
+                    _st = _sanitize_text(_a.get("text", ""))
+                    if "\\frac" in _st:
+                        _depth = min(2, _frac_nesting_depth(_st))
+                        _nf = _st.count("\\frac")
+                        effective_lines += _FRAC_WEIGHTS[_depth] * max(1.0, _nf / 2.0)
+                    else:
+                        effective_lines += 1.0
         effective_lines += _non_step_items
         # Right column alone first; only fall back to right + overflow combined
         # when the single column would force the font below a legible size.
@@ -552,12 +583,14 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
     widest = 0.0
     for a in annotations:
         if _is_workspace_write_action(a):
-            st = _sanitize_text(a.get("text", ""))
-            if st and not _contains_devanagari(st):
-                try:
-                    widest = max(widest, _measure_draw.textlength(st, font=step_font))
-                except Exception:
-                    pass
+            _lines = a.get("board_lines") or [a.get("text", "")]
+            for _ln in _lines:
+                st = _sanitize_text(str(_ln))
+                if st and not _contains_devanagari(st):
+                    try:
+                        widest = max(widest, _measure_draw.textlength(st, font=step_font))
+                    except Exception:
+                        pass
     if widest > region_w > 0:
         step_fs = int(max(13, step_fs * region_w / widest))
         step_font = _sized_variant(font_body, step_fs)
@@ -606,10 +639,30 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
     # every pair at once so they fan across the gutter instead of overlapping.
     match_routes = _route_match_pairs(annotations, ocr_index, option_positions, W, H)
 
+    # Base obstacle map for a page wipe: the printed question OCR text, the
+    # watermark band, any protected table and pre-reserved diagrams — everything
+    # that is NOT prior-page worked-solution writing. On a page turn `occupied` is
+    # reset to this so the fresh page avoids the question but reuses the whole
+    # (now-clear) solution zone.
+    _page_base_occupied = list(occupied)
+    _prev_page = None
+
     temp_schedule = []
     for i, ann in enumerate(annotations):
         action = ann["action"]
         t = ann["time"]
+
+        # ── Page turn → wipe the solution workspace ───────────────────────────
+        # Storyboard pages are meant to CLEAR the board between them (the printed
+        # question persists; the worked solution is erased). Pages only ever
+        # increase; a lower value (e.g. a page-less mark_answer defaulting to 1
+        # after a page-2 step) is not a real turn, so only reset on an increase.
+        _pg = ann.get("page", 1)
+        if _prev_page is not None and _pg > _prev_page:
+            wx, wy, region_w = _page_wx0, _page_wy0, _page_region_w0
+            _ws_col = 0
+            occupied[:] = _page_base_occupied
+        _prev_page = max(_prev_page or 0, _pg)
         entry = {**ann, "write_start": t, "write_end": t + 0.8}
         if action == "write_note" and _is_formula_like_text(ann.get("text", "")):
             action = "write_step"
@@ -871,7 +924,14 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
                     entry["arrow_params"] = (pcx, pcy, lx + 6, ly + bh / 2)
 
         elif action in WRITE_ACTIONS:  # stacked workspace column (derivation / Hindi)
-            text = _sanitize_text(ann.get("text", ""))
+            raw_lines = ann.get("board_lines") or []
+            if raw_lines:
+                # Sanitize each board_line SEPARATELY so that the join's \n is never
+                # misread as a LaTeX control char by _restore_backslash_latex.
+                clean_lines = [_sanitize_text(str(l)) for l in raw_lines if str(l).strip()]
+                text = "\n".join(clean_lines)
+            else:
+                text = _sanitize_text(ann.get("text", ""))
             entry["text"] = text
             entry["is_hindi"] = _contains_devanagari(text)
             if entry["is_hindi"]:
@@ -882,15 +942,33 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
                 entry["write_pos"] = (wx, clear_y)
                 occupied.append(step_box)
                 wy = clear_y + bh + step_gap
-            else:
-                entry["render_font"] = step_font  # math radical token reveal, sized to fit
+            elif raw_lines:
+                # Multi-line board content → always use _build_text_layers (handles \n)
+                layout = _build_text_layers(text, step_font, pen, region_w, _measure_draw)
+                entry["text_layout"] = layout
+                bw, bh = layout["block_w"], layout["block_h"]
+                clear_y, step_box = _next_clear_y(wx, wy, bw, bh, occupied, H, step_gap)
+                if clear_y + bh > H - _BOTTOM_PAD and _ws_col == 0:
+                    _ws_col = 1
+                    wx, wy = _ovf_x0, _ovf_y0
+                    region_w = _ovf_region_w
+                    layout = _build_text_layers(text, step_font, pen, region_w, _measure_draw)
+                    entry["text_layout"] = layout
+                    bw, bh = layout["block_w"], layout["block_h"]
+                    clear_y, step_box = _next_clear_y(wx, wy, bw, bh, occupied, H, step_gap)
+                if clear_y + bh > H - _BOTTOM_PAD:
+                    clear_y = max(0, H - _BOTTOM_PAD - bh)
+                    step_box = (step_box[0], clear_y, step_box[2], clear_y + bh)
+                entry["render_font"] = step_font
                 entry["line_height"] = int(step_fs * 1.45)
-                # Lines with \frac: pre-build a text_layout for the layer-reveal
-                # path in frame.py — token-by-token reveal breaks on partial
-                # \frac expressions (unclosed braces render as literal LaTeX).
+                entry["write_pos"] = (wx, clear_y)
+                occupied.append(step_box)
+                wy = clear_y + bh + step_gap
+            else:
+                entry["render_font"] = step_font
+                entry["line_height"] = int(step_fs * 1.45)
                 if "\\frac" in text:
-                    layout = _build_text_layers(
-                        text, step_font, pen, region_w, _measure_draw)
+                    layout = _build_text_layers(text, step_font, pen, region_w, _measure_draw)
                     entry["text_layout"] = layout
                     bw, bh = layout["block_w"], layout["block_h"]
                 else:
@@ -898,9 +976,6 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
                         _mw = int(_measure_draw.textlength(text, font=step_font))
                     except Exception:
                         _mw = region_w + 1
-                    # If the line is too wide for the column (accounting for a
-                    # 12% safety buffer for per-glyph fallback font width variance),
-                    # route it through _build_text_layers which wraps at word breaks.
                     if _mw > region_w * 0.88:
                         layout = _build_text_layers(text, step_font, pen, region_w, _measure_draw)
                         entry["text_layout"] = layout
@@ -909,35 +984,33 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
                         bw = min(region_w, _mw)
                         bh = entry["line_height"]
                 clear_y, step_box = _next_clear_y(wx, wy, bw, bh, occupied, H, step_gap)
-                # Overflow: primary column full → move to bottom-left column.
                 if clear_y + bh > H - _BOTTOM_PAD and _ws_col == 0:
                     _ws_col = 1
                     wx, wy = _ovf_x0, _ovf_y0
                     region_w = _ovf_region_w
-                    # Rebuild layout for the new (possibly different) column width.
                     try:
                         _mw2 = int(_measure_draw.textlength(text, font=step_font))
                     except Exception:
                         _mw2 = region_w + 1
                     if "\\frac" in text or _mw2 > region_w * 0.88:
-                        layout = _build_text_layers(
-                            text, step_font, pen, region_w, _measure_draw)
+                        layout = _build_text_layers(text, step_font, pen, region_w, _measure_draw)
                         entry["text_layout"] = layout
                         bw, bh = layout["block_w"], layout["block_h"]
                     else:
                         bw = min(region_w, _mw2)
                     clear_y, step_box = _next_clear_y(wx, wy, bw, bh, occupied, H, step_gap)
-                # Last-resort in-frame clamp: never let a step render off the bottom
-                # edge. The combined-column font-fit should prevent this; if the
-                # estimate still overshoots on a very dense derivation, pull the line
-                # fully into frame even at the cost of a few px overlap with the line
-                # above — a complete, visible final step beats a clipped one.
                 if clear_y + bh > H - _BOTTOM_PAD:
                     clear_y = max(0, H - _BOTTOM_PAD - bh)
                     step_box = (step_box[0], clear_y, step_box[2], clear_y + bh)
                 entry["write_pos"] = (wx, clear_y)
                 occupied.append(step_box)
                 wy = clear_y + bh + step_gap
+
+            # Boxed final answer (whiteboard-storyboard mode)
+            if ann.get("box_answer") and entry.get("write_pos"):
+                bx, by = entry["write_pos"]
+                entry["answer_box"] = (bx - 10, by - 8, bx + bw + 12, by + bh + 8)
+                wy += 10
 
         elif action == "draw_arrow":
             entry["write_end"] = t + 0.6
@@ -1054,7 +1127,7 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
     last_reading = max(reading_underlines) if reading_underlines else 0.0
     gate = max(last_reading, min(0.16 * total_duration, 12.0))
     for e in schedule:
-        if e["action"] in eval_acts and e["write_start"] < gate:
+        if not exact_mode and e["action"] in eval_acts and e["write_start"] < gate:
             dur = max(0.7, e["write_end"] - e["write_start"])
             e["write_start"] = gate
             e["write_end"] = gate + dur
@@ -1076,7 +1149,7 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
     # so its `max_hold` stays under the limit and it is left completely untouched.
     teach_actions = [e for e in schedule
                      if e["action"] not in ("underline_existing",) + ANSWER_ACTIONS]
-    if len(teach_actions) >= 3:
+    if not exact_mode and len(teach_actions) >= 3:
         ordered = sorted(teach_actions, key=lambda e: e["write_start"])
         first_ul = min(underline_times) if underline_times else 0.0
         # Teaching window: opens once the stem has been read (so we never write over
@@ -1168,7 +1241,7 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
     # teacher eliminates options DURING the explanation and marks the answer LAST.
     # Enforce that invariant — but only fix marks that actually violate it, so a
     # correctly-timed late answer/cross-out keeps its spoken sync.
-    if option_positions:
+    if option_positions and not exact_mode:
         def _retime(e, nt):
             dur = max(0.7, e["write_end"] - e["write_start"])
             e["write_start"] = nt
@@ -1218,5 +1291,30 @@ def _build_schedule(annotations, total_duration, enriched_ocr, option_positions,
                 if e["write_start"] < gate + 1.0 or (cross_ts and e["write_start"] < last_cross):
                     _retime(e, min(last_cross + 1.2, tail))
                 last_cross = max(last_cross, e["write_start"])
+
+    # ── Page-turn wipe times ──────────────────────────────────────────────────
+    # The board is not an infinite scroll. When a new page starts writing its
+    # worked solution, the previous page's solution writing is erased so the two
+    # never overlap (the heavy-overlap defect). Each workspace-write action from
+    # page p renders only until the first workspace write of page p+1 begins; the
+    # printed question stays (it is the background). Question annotations (circle /
+    # underline / cross / answer ring / verdict / match) sit on the question and
+    # are NOT page-scoped, so they persist for the rest of the video.
+    WIPEABLE = set(WRITE_ACTIONS) | set(TEXT_ACTIONS) | {"draw_diagram"}
+    pages_with_writes = sorted({e.get("page", 1) for e in schedule
+                                if e["action"] in WIPEABLE})
+    if len(pages_with_writes) > 1:
+        first_write = {}
+        for e in schedule:
+            if e["action"] in WIPEABLE:
+                p = e.get("page", 1)
+                first_write[p] = min(first_write.get(p, e["write_start"]),
+                                     e["write_start"])
+        for e in schedule:
+            if e["action"] not in WIPEABLE:
+                continue
+            later = [q for q in pages_with_writes if q > e.get("page", 1)]
+            if later:
+                e["_wipe_after"] = first_write[later[0]]
 
     return schedule

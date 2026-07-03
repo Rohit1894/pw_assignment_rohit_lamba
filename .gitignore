@@ -43,6 +43,9 @@ build/
 .env
 .env.local
 
+# Streamlit real secrets (the .example template IS committed; real keys are not)
+.streamlit/secrets.toml
+
 # Heavy media & generated artifacts — excluded from version control so the repo
 # stays a lean source snapshot. These are large (input/ ~328MB of sample media,
 # output/ ~149MB of generated videos/frames/caches) and not needed to revert code.

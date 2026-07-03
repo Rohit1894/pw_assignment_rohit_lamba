@@ -1,0 +1,20 @@
+{
+  "candidates": [
+    "shubh",
+    "aditya",
+    "ritu",
+    "priya",
+    "neha",
+    "rahul",
+    "ishita",
+    "ratan",
+    "ashutosh",
+    "mani",
+    "suhani"
+  ],
+  "default_speaker": "shubh",
+  "default_pace": 0.92,
+  "default_model": "bulbul:v3",
+  "default_language_code": "hi-IN",
+  "notes": "Run voice_benchmark_sarvam.py to generate samples and score each voice before choosing."
+}

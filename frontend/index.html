@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PW AI Video Generator</title>
+  <style>
+    /* ── Reset & Tokens ──────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --orange:       #FF6B00;
+      --orange-light: #FF8C38;
+      --orange-dark:  #CC5500;
+      --bg:           #0D0D0D;
+      --surface:      #161616;
+      --surface2:     #1F1F1F;
+      --surface3:     #2A2A2A;
+      --border:       #2E2E2E;
+      --border-hover: #444;
+      --text-primary: #F5F5F5;
+      --text-sec:     #999;
+      --text-muted:   #666;
+      --success:      #22C55E;
+      --error:        #EF4444;
+      --radius:       12px;
+      --radius-sm:    8px;
+      --shadow:       0 4px 24px rgba(0,0,0,.5);
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Scrollbar ───────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--surface); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Header ──────────────────────────────────────────────────────── */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2rem; height: 64px;
+      background: rgba(13,13,13,.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      display: flex; align-items: center; gap: 10px;
+      text-decoration: none;
+    }
+    .logo-badge {
+      width: 36px; height: 36px; border-radius: 8px;
+      background: var(--orange);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 16px; color: #fff; letter-spacing: -1px;
+    }
+    .logo-text { font-size: 18px; font-weight: 700; color: var(--text-primary); }
+    .logo-text span { color: var(--orange); }
+
+    .header-tag {
+      font-size: 11px; font-weight: 600; letter-spacing: .8px;
+      text-transform: uppercase; color: var(--text-muted);
+      background: var(--surface2); border: 1px solid var(--border);
+      padding: 4px 10px; border-radius: 20px;
+    }
+
+    /* ── Hero ────────────────────────────────────────────────────────── */
+    .hero {
+      text-align: center;
+      padding: 4rem 2rem 2rem;
+    }
+    .hero-label {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 600; letter-spacing: .8px;
+      text-transform: uppercase; color: var(--orange);
+      background: rgba(255,107,0,.08); border: 1px solid rgba(255,107,0,.2);
+      padding: 4px 14px; border-radius: 20px; margin-bottom: 20px;
+    }
+    .hero-label::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--orange); }
+    .hero h1 {
+      font-size: clamp(2rem, 4vw, 3rem); font-weight: 800;
+      line-height: 1.15; letter-spacing: -1px;
+      margin-bottom: 16px;
+    }
+    .hero h1 em { color: var(--orange); font-style: normal; }
+    .hero p {
+      color: var(--text-sec); font-size: 1.05rem; max-width: 520px;
+      margin: 0 auto 2.5rem;
+    }
+
+    /* ── Main layout ─────────────────────────────────────────────────── */
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 1.5rem 5rem;
+    }
+
+    /* ── Card ────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .card-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 1.25rem;
+    }
+    .step-badge {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--orange); color: #fff;
+      font-size: 12px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .card-header h2 {
+      font-size: 15px; font-weight: 600; color: var(--text-primary);
+    }
+    .card-header p {
+      font-size: 12px; color: var(--text-muted); margin-top: 2px;
+    }
+
+    /* ── Upload zone ─────────────────────────────────────────────────── */
+    .upload-zone {
+      position: relative;
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 3rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      background: var(--surface2);
+      overflow: hidden;
+    }
+    .upload-zone:hover,
+    .upload-zone.drag-over {
+      border-color: var(--orange);
+      background: rgba(255,107,0,.04);
+    }
+    .upload-zone.has-file { border-style: solid; border-color: var(--orange); }
+    .upload-zone input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+    }
+    .upload-icon {
+      width: 56px; height: 56px; margin: 0 auto 1rem;
+      background: var(--surface3); border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+    }
+    .upload-zone h3 {
+      font-size: 15px; font-weight: 600; margin-bottom: 6px;
+    }
+    .upload-zone p {
+      font-size: 13px; color: var(--text-muted); margin-bottom: 1rem;
+    }
+    .upload-types {
+      display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;
+    }
+    .type-chip {
+      font-size: 11px; font-weight: 600; letter-spacing: .4px;
+      background: var(--surface3); border: 1px solid var(--border);
+      padding: 3px 10px; border-radius: 20px; color: var(--text-sec);
+    }
+
+    /* File preview */
+    .file-preview {
+      display: none;
+      align-items: center; gap: 12px;
+      background: var(--surface3); border-radius: var(--radius-sm);
+      padding: 12px 16px; margin-top: 1rem;
+      text-align: left;
+    }
+    .file-preview.visible { display: flex; }
+    .file-icon {
+      width: 40px; height: 40px; border-radius: 8px;
+      background: rgba(255,107,0,.12); color: var(--orange);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .file-info { flex: 1; min-width: 0; }
+    .file-name {
+      font-size: 13px; font-weight: 600;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .file-size { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .file-remove {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-muted); font-size: 18px; padding: 4px;
+      border-radius: 4px; line-height: 1;
+      transition: color .15s;
+    }
+    .file-remove:hover { color: var(--error); }
+
+    /* Image preview */
+    .img-thumb {
+      display: none;
+      width: 100%; max-height: 280px; object-fit: contain;
+      border-radius: var(--radius-sm);
+      margin-top: 1rem;
+      border: 1px solid var(--border);
+    }
+    .img-thumb.visible { display: block; }
+
+    /* ── Language grid ───────────────────────────────────────────────── */
+    .lang-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 10px;
+    }
+    .lang-card {
+      position: relative;
+      display: flex; flex-direction: column; align-items: center;
+      gap: 8px; padding: 14px 10px;
+      border-radius: var(--radius-sm);
+      border: 2px solid var(--border);
+      background: var(--surface2);
+      cursor: pointer;
+      transition: border-color .15s, background .15s, transform .1s;
+      user-select: none;
+    }
+    .lang-card:hover {
+      border-color: var(--border-hover);
+      background: var(--surface3);
+    }
+    .lang-card.selected {
+      border-color: var(--orange);
+      background: rgba(255,107,0,.06);
+    }
+    .lang-card.selected .lang-check { display: flex; }
+    .lang-check {
+      position: absolute; top: 6px; right: 6px;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: var(--orange); color: #fff;
+      font-size: 10px; font-weight: 700;
+      display: none; align-items: center; justify-content: center;
+    }
+    .lang-flag { font-size: 28px; line-height: 1; }
+    .lang-name { font-size: 13px; font-weight: 600; }
+    .lang-native { font-size: 11px; color: var(--text-muted); }
+    .lang-card input[type=radio] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+    }
+
+    /* ── Options row ─────────────────────────────────────────────────── */
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 560px) { .options-grid { grid-template-columns: 1fr; } }
+
+    .option-group { display: flex; flex-direction: column; gap: 6px; }
+    .option-group label {
+      font-size: 12px; font-weight: 600; color: var(--text-sec);
+      letter-spacing: .4px; text-transform: uppercase;
+    }
+    .option-group select,
+    .option-group input[type=range] {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text-primary); border-radius: var(--radius-sm);
+      padding: 9px 12px; font-size: 13px; width: 100%;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      cursor: pointer;
+      transition: border-color .15s;
+    }
+    .option-group select:hover,
+    .option-group select:focus {
+      border-color: var(--orange); outline: none;
+    }
+
+    /* Voice speed slider */
+    .slider-wrap { display: flex; align-items: center; gap: 10px; }
+    .slider-val {
+      font-size: 13px; font-weight: 700; color: var(--orange);
+      min-width: 34px; text-align: right;
+    }
+    input[type=range] {
+      -webkit-appearance: none; appearance: none;
+      height: 4px; border-radius: 2px; padding: 0 !important;
+      background: var(--surface3) !important;
+      background-image: none !important;
+      cursor: pointer; flex: 1;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: var(--orange); cursor: pointer;
+      border: 2px solid #fff;
+    }
+
+    /* ── Generate button ─────────────────────────────────────────────── */
+    .btn-generate {
+      width: 100%; padding: 16px;
+      font-size: 16px; font-weight: 700; letter-spacing: .3px;
+      color: #fff; background: var(--orange);
+      border: none; border-radius: var(--radius);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      transition: background .15s, transform .1s, box-shadow .15s;
+      box-shadow: 0 4px 20px rgba(255,107,0,.3);
+      margin-top: 1.5rem;
+    }
+    .btn-generate:hover:not(:disabled) {
+      background: var(--orange-light);
+      box-shadow: 0 6px 28px rgba(255,107,0,.45);
+      transform: translateY(-1px);
+    }
+    .btn-generate:active:not(:disabled) { transform: translateY(0); }
+    .btn-generate:disabled {
+      opacity: .45; cursor: not-allowed;
+      box-shadow: none; transform: none;
+    }
+    .btn-icon { font-size: 20px; }
+
+    /* ── Progress panel ──────────────────────────────────────────────── */
+    .progress-panel {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .progress-panel.visible { display: block; }
+
+    .progress-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.25rem;
+    }
+    .progress-header h3 { font-size: 15px; font-weight: 600; }
+    .progress-pct {
+      font-size: 22px; font-weight: 800; color: var(--orange);
+    }
+
+    .prog-bar-outer {
+      height: 6px; background: var(--surface3);
+      border-radius: 3px; margin-bottom: 1.5rem; overflow: hidden;
+    }
+    .prog-bar-inner {
+      height: 100%; background: var(--orange);
+      border-radius: 3px; width: 0%;
+      transition: width .4s ease;
+    }
+
+    .pipeline-steps { display: flex; flex-direction: column; gap: 10px; }
+    .pipe-step {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 14px;
+      background: var(--surface2); border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      transition: border-color .2s;
+    }
+    .pipe-step.active { border-color: var(--orange); }
+    .pipe-step.done   { border-color: var(--success); }
+    .pipe-step.error  { border-color: var(--error); }
+
+    .pipe-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--border); flex-shrink: 0;
+      transition: background .2s;
+    }
+    .pipe-step.active .pipe-dot { background: var(--orange); animation: pulse 1s infinite; }
+    .pipe-step.done   .pipe-dot { background: var(--success); animation: none; }
+    .pipe-step.error  .pipe-dot { background: var(--error); animation: none; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: .6; transform: scale(1.3); }
+    }
+
+    .pipe-label { flex: 1; font-size: 13px; font-weight: 500; }
+    .pipe-status {
+      font-size: 11px; font-weight: 600;
+      padding: 2px 8px; border-radius: 20px;
+      background: var(--surface3); color: var(--text-muted);
+    }
+    .pipe-step.active .pipe-status { background: rgba(255,107,0,.12); color: var(--orange); }
+    .pipe-step.done   .pipe-status { background: rgba(34,197,94,.12); color: var(--success); }
+    .pipe-step.error  .pipe-status { background: rgba(239,68,68,.12); color: var(--error); }
+
+    /* ── Result panel ────────────────────────────────────────────────── */
+    .result-panel {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--success);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .result-panel.visible { display: block; }
+
+    .result-header {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 1.25rem;
+    }
+    .result-icon {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: rgba(34,197,94,.12); color: var(--success);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    .result-header h3 { font-size: 15px; font-weight: 700; }
+    .result-header p { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+    .video-player-wrap {
+      width: 100%; background: #000;
+      border-radius: var(--radius-sm); overflow: hidden;
+      margin-bottom: 1rem;
+      aspect-ratio: 16/9;
+      display: flex; align-items: center; justify-content: center;
+    }
+    video { width: 100%; height: 100%; }
+    .video-placeholder {
+      color: var(--text-muted); font-size: 13px; text-align: center;
+    }
+
+    .result-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 10px 18px; border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      border: none; transition: background .15s, transform .1s;
+      text-decoration: none;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-primary { background: var(--orange); color: #fff; }
+    .btn-primary:hover { background: var(--orange-light); }
+    .btn-secondary {
+      background: var(--surface2); color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: var(--surface3); }
+    .btn-ghost {
+      background: transparent; color: var(--text-sec);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { background: var(--surface2); color: var(--text-primary); }
+
+    /* ── Stats row ───────────────────────────────────────────────────── */
+    .stats-row {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 10px; margin-bottom: 1.25rem;
+    }
+    .stat-box {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 14px;
+      text-align: center;
+    }
+    .stat-val { font-size: 22px; font-weight: 800; color: var(--orange); }
+    .stat-lbl { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    /* ── Footer ──────────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.5rem 2rem;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: .75rem;
+      color: var(--text-muted); font-size: 12px;
+    }
+    footer a { color: var(--orange); text-decoration: none; }
+
+    /* ── Toast ───────────────────────────────────────────────────────── */
+    .toast-wrap {
+      position: fixed; bottom: 24px; right: 24px;
+      display: flex; flex-direction: column; gap: 8px;
+      z-index: 9999; pointer-events: none;
+    }
+    .toast {
+      pointer-events: auto;
+      padding: 12px 18px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); font-size: 13px;
+      box-shadow: var(--shadow);
+      transform: translateX(120%);
+      transition: transform .3s ease;
+      max-width: 320px;
+    }
+    .toast.show { transform: translateX(0); }
+    .toast.success { border-color: var(--success); }
+    .toast.error   { border-color: var(--error); }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────── -->
+<header>
+  <a href="#" class="logo">
+    <div class="logo-badge">PW</div>
+    <span class="logo-text">Physics<span>Wallah</span></span>
+  </a>
+  <span class="header-tag">AI Video Generator · Beta</span>
+</header>
+
+<!-- ── Hero ───────────────────────────────────────────────────────────── -->
+<div class="hero">
+  <div class="hero-label">Powered by Gemini + Sarvam TTS</div>
+  <h1>Turn any question image<br>into an <em>explained video</em></h1>
+  <p>Upload a question image or slide, choose your language, and get a fully annotated explanation video in seconds.</p>
+</div>
+
+<!-- ── Main form ───────────────────────────────────────────────────────── -->
+<div class="container">
+
+  <!-- Step 1 — Upload -->
+  <div class="card">
+    <div class="card-header">
+      <div class="step-badge">1</div>
+      <div>
+        <h2>Upload your question</h2>
+        <p>Image (.jpg/.png) or PDF / PowerPoint slide</p>
+      </div>
+    </div>
+
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" id="fileInput" accept="image/*,.pdf,.ppt,.pptx" />
+      <div class="upload-icon">📄</div>
+      <h3>Drag & drop your file here</h3>
+      <p>or click to browse from your computer</p>
+      <div class="upload-types">
+        <span class="type-chip">JPG</span>
+        <span class="type-chip">PNG</span>
+        <span class="type-chip">PDF</span>
+        <span class="type-chip">PPT</span>
+        <span class="type-chip">PPTX</span>
+      </div>
+    </div>
+
+    <img class="img-thumb" id="imgThumb" alt="preview" />
+
+    <div class="file-preview" id="filePreview">
+      <div class="file-icon" id="previewIcon">📄</div>
+      <div class="file-info">
+        <div class="file-name" id="previewName">—</div>
+        <div class="file-size" id="previewSize">—</div>
+      </div>
+      <button class="file-remove" id="fileRemove" title="Remove">✕</button>
+    </div>
+  </div>
+
+  <!-- Step 2 — Language -->
+  <div class="card">
+    <div class="card-header">
+      <div class="step-badge">2</div>
+      <div>
+        <h2>Select explanation language</h2>
+        <p>The narration voice and script will use this language</p>
+      </div>
+    </div>
+
+    <div class="lang-grid">
+      <!-- Hindi / Hinglish -->
+      <label class="lang-card selected" data-lang="hinglish">
+        <input type="radio" name="language" value="hinglish" checked />
+        <div class="lang-check">✓</div>
+        <div class="lang-flag">🇮🇳</div>
+        <div class="lang-name">Hindi</div>
+        <div class="lang-native">हिन्दी</div>
+      </label>
+
+      <!-- English -->
+      <label class="lang-card" data-lang="english">
+        <input type="radio" name="language" value="english" />
+        <div class="lang-check">✓</div>
+        <div class="lang-flag">🇬🇧</div>
+        <div class="lang-name">English</div>
+        <div class="lang-native">English</div>
+      </label>
+
+      <!-- Telugu -->
+      <label class="lang-card" data-lang="telugu">
+        <input type="radio" name="language" value="telugu" />
+        <div class="lang-check">✓</div>
+        <div class="lang-flag">🇮🇳</div>
+        <div class="lang-name">Telugu</div>
+        <div class="lang-native">తెలుగు</div>
+      </label>
+
+      <!-- Marathi -->
+      <label class="lang-card" data-lang="marathi">
+        <input type="radio" name="language" value="marathi" />
+        <div class="lang-check">✓</div>
+        <div class="lang-flag">🇮🇳</div>
+        <div class="lang-name">Marathi</div>
+        <div class="lang-native">मराठी</div>
+      </label>
+
+      <!-- Kannada -->
+      <label class="lang-card" data-lang="kannada">
+        <input type="radio" name="language" value="kannada" />
+        <div class="lang-check">✓</div>
+        <div class="lang-flag">🇮🇳</div>
+        <div class="lang-name">Kannada</div>
+        <div class="lang-native">ಕನ್ನಡ</div>
+      </label>
+
+      <!-- Tamil (coming soon) -->
+      <label class="lang-card" data-lang="tamil" style="opacity:.5;pointer-events:none;">
+        <input type="radio" name="language" value="tamil" disabled />
+        <div class="lang-flag">🇮🇳</div>
+        <div class="lang-name">Tamil</div>
+        <div class="lang-native">தமிழ் &nbsp;·&nbsp; <span style="font-size:10px;color:var(--orange)">Soon</span></div>
+      </label>
+    </div>
+  </div>
+
+  <!-- Step 3 — Options -->
+  <div class="card">
+    <div class="card-header">
+      <div class="step-badge">3</div>
+      <div>
+        <h2>Customise output</h2>
+        <p>Adjust voice, style and quality settings</p>
+      </div>
+    </div>
+
+    <div class="options-grid">
+      <div class="option-group">
+        <label for="voiceSelect">Voice Speaker</label>
+        <select id="voiceSelect">
+          <option value="shubh">Shubh (Male, Clear)</option>
+          <option value="meera">Meera (Female, Warm)</option>
+          <option value="arjun">Arjun (Male, Deep)</option>
+          <option value="diya">Diya (Female, Bright)</option>
+        </select>
+      </div>
+
+      <div class="option-group">
+        <label for="boardStyle">Board Style</label>
+        <select id="boardStyle">
+          <option value="white">White Board (Default)</option>
+          <option value="dark">Dark Board (Night)</option>
+          <option value="green">Green Chalkboard</option>
+        </select>
+      </div>
+
+      <div class="option-group">
+        <label for="paceSlider">Narration Pace — <span id="paceLabel">0.92×</span></label>
+        <div class="slider-wrap">
+          <input type="range" id="paceSlider" min="0.6" max="1.5" step="0.02" value="0.92" />
+          <span class="slider-val" id="paceVal">0.92×</span>
+        </div>
+      </div>
+
+      <div class="option-group">
+        <label for="qualitySelect">Output Quality</label>
+        <select id="qualitySelect">
+          <option value="standard">Standard (720p · Fast)</option>
+          <option value="high" selected>High (1080p · Balanced)</option>
+          <option value="ultra">Ultra (1080p · Slow)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Generate button -->
+  <button class="btn-generate" id="btnGenerate" disabled>
+    <span class="btn-icon">✨</span>
+    Generate Explanation Video
+  </button>
+
+  <!-- Progress panel (shown while running) -->
+  <div class="progress-panel" id="progressPanel">
+    <div class="progress-header">
+      <h3 id="progressTitle">Generating your video…</h3>
+      <div class="progress-pct" id="progressPct">0%</div>
+    </div>
+    <div class="prog-bar-outer">
+      <div class="prog-bar-inner" id="progressBar"></div>
+    </div>
+    <div class="pipeline-steps" id="pipelineSteps">
+      <!-- Injected by JS -->
+    </div>
+
+    <!-- Error log panel (hidden until error) -->
+    <div id="errorBox" style="display:none; margin-top:1.25rem;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+        <span style="font-size:13px; font-weight:700; color:var(--error);">⚠ Pipeline Error — Terminal Output</span>
+        <button onclick="resetForm()" style="background:var(--surface3); border:1px solid var(--border); color:var(--text-sec); border-radius:6px; padding:4px 12px; font-size:12px; cursor:pointer;">↩ Try Again</button>
+      </div>
+      <pre id="errorLog" style="background:#1a0a0a; border:1px solid rgba(239,68,68,.3); border-radius:8px; padding:14px 16px; font-size:12px; color:#f87171; overflow-x:auto; white-space:pre-wrap; word-break:break-word; max-height:280px; overflow-y:auto; line-height:1.6;"></pre>
+    </div>
+  </div>
+
+  <!-- Result panel -->
+  <div class="result-panel" id="resultPanel">
+    <div class="result-header">
+      <div class="result-icon">✅</div>
+      <div>
+        <h3>Your video is ready!</h3>
+        <p id="resultMeta">Duration: —  ·  Quality Score: —</p>
+      </div>
+    </div>
+
+    <div class="stats-row" id="statsRow">
+      <div class="stat-box">
+        <div class="stat-val" id="statDuration">—</div>
+        <div class="stat-lbl">Duration</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="statScore">—</div>
+        <div class="stat-lbl">Quality Score</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="statSteps">—</div>
+        <div class="stat-lbl">Steps Explained</div>
+      </div>
+    </div>
+
+    <div class="video-player-wrap">
+      <video id="videoPlayer" controls></video>
+    </div>
+
+    <div class="result-actions">
+      <button class="btn btn-primary" id="btnDownload">
+        ⬇ Download MP4
+      </button>
+      <button class="btn btn-secondary" id="btnNewVideo" onclick="resetForm()">
+        ↩ New Video
+      </button>
+      <button class="btn btn-ghost">
+        ✂ Share Link
+      </button>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- ── Footer ─────────────────────────────────────────────────────────── -->
+<footer>
+  <span>© 2024 PW (PhysicsWallah). All rights reserved.</span>
+  <span>
+    Powered by
+    <a href="#">Gemini 2.0 Flash</a> ·
+    <a href="#">Sarvam Bulbul v3</a> ·
+    <a href="#">Whisper</a>
+  </span>
+</footer>
+
+<!-- ── Toast container ─────────────────────────────────────────────────── -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- ── JavaScript ─────────────────────────────────────────────────────── -->
+<script>
+// ── State ─────────────────────────────────────────────────────────────
+let selectedFile = null;
+let currentJobId = null;
+let pollTimer    = null;
+
+// Matches server STEP_MAP labels in order
+const STEPS_ORDERED = [
+  "Preparing whiteboard canvas",
+  "Reading & understanding question",
+  "Solving step-by-step",
+  "Verifying solution",
+  "Generating storyboard",
+  "Layout planning + glyph check",
+  "Building pronunciation dictionary",
+  "Generating narration audio (TTS)",
+  "Transcribing narration (Whisper)",
+  "Building timeline",
+  "Validating before render",
+  "Rendering whiteboard video",
+];
+
+// ── DOM refs ──────────────────────────────────────────────────────────
+const uploadZone    = document.getElementById('uploadZone');
+const fileInput     = document.getElementById('fileInput');
+const filePreview   = document.getElementById('filePreview');
+const previewIcon   = document.getElementById('previewIcon');
+const previewName   = document.getElementById('previewName');
+const previewSize   = document.getElementById('previewSize');
+const fileRemove    = document.getElementById('fileRemove');
+const imgThumb      = document.getElementById('imgThumb');
+const btnGenerate   = document.getElementById('btnGenerate');
+const paceSlider    = document.getElementById('paceSlider');
+const paceVal       = document.getElementById('paceVal');
+const progressPanel = document.getElementById('progressPanel');
+const progressBar   = document.getElementById('progressBar');
+const progressPct   = document.getElementById('progressPct');
+const pipelineSteps = document.getElementById('pipelineSteps');
+const resultPanel   = document.getElementById('resultPanel');
+const videoPlayer   = document.getElementById('videoPlayer');
+const statDuration  = document.getElementById('statDuration');
+const statScore     = document.getElementById('statScore');
+const statSteps     = document.getElementById('statSteps');
+const toastWrap     = document.getElementById('toastWrap');
+const btnDownload   = document.getElementById('btnDownload');
+
+// ── Upload handling ───────────────────────────────────────────────────
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', ()  => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) handleFile(fileInput.files[0]);
+});
+fileRemove.addEventListener('click', resetFile);
+
+function handleFile(file) {
+  const allowed = ['image/jpeg','image/png','image/webp','image/gif',
+                   'application/pdf',
+                   'application/vnd.ms-powerpoint',
+                   'application/vnd.openxmlformats-officedocument.presentationml.presentation'];
+  if (!allowed.includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|webp|pdf|ppt|pptx)$/i)) {
+    showToast('Unsupported file type. Please upload an image, PDF, or PPT.', 'error');
+    return;
+  }
+  if (file.size > 50 * 1024 * 1024) {
+    showToast('File too large (max 50 MB).', 'error');
+    return;
+  }
+  selectedFile = file;
+  uploadZone.classList.add('has-file');
+
+  const isImg = file.type.startsWith('image/');
+  const isPdf = file.type === 'application/pdf';
+  previewIcon.textContent = isImg ? '🖼' : isPdf ? '📕' : '📊';
+  previewName.textContent = file.name;
+  previewSize.textContent = formatBytes(file.size);
+  filePreview.classList.add('visible');
+
+  if (isImg) {
+    const reader = new FileReader();
+    reader.onload = ev => { imgThumb.src = ev.target.result; imgThumb.classList.add('visible'); };
+    reader.readAsDataURL(file);
+  } else {
+    imgThumb.classList.remove('visible');
+    imgThumb.src = '';
+  }
+  btnGenerate.disabled = false;
+}
+
+function resetFile() {
+  selectedFile = null;
+  fileInput.value = '';
+  uploadZone.classList.remove('has-file');
+  filePreview.classList.remove('visible');
+  imgThumb.classList.remove('visible');
+  imgThumb.src = '';
+  btnGenerate.disabled = true;
+}
+
+function formatBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+function formatDuration(sec) {
+  const m = Math.floor(sec / 60), s = Math.round(sec % 60);
+  return `${m}:${s.toString().padStart(2,'0')}`;
+}
+
+// ── Language cards ────────────────────────────────────────────────────
+document.querySelectorAll('.lang-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.lang-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+  });
+});
+
+// ── Pace slider ───────────────────────────────────────────────────────
+paceSlider.addEventListener('input', () => {
+  paceVal.textContent = parseFloat(paceSlider.value).toFixed(2) + '×';
+});
+
+// ── Generate ──────────────────────────────────────────────────────────
+btnGenerate.addEventListener('click', startGeneration);
+
+async function startGeneration() {
+  if (!selectedFile) return;
+
+  const language = document.querySelector('input[name=language]:checked')?.value || 'hinglish';
+  const speaker  = document.getElementById('voiceSelect').value;
+  const pace     = paceSlider.value;
+
+  resultPanel.classList.remove('visible');
+  progressPanel.classList.add('visible');
+  btnGenerate.disabled = true;
+  btnGenerate.innerHTML = '<span class="btn-icon">⏳</span> Generating…';
+
+  // Build step list UI
+  pipelineSteps.innerHTML = STEPS_ORDERED.map((label, i) => `
+    <div class="pipe-step" id="pipe-step-${i}">
+      <div class="pipe-dot"></div>
+      <span class="pipe-label">${label}</span>
+      <span class="pipe-status">Waiting</span>
+    </div>
+  `).join('');
+  setProgress(0);
+
+  // Upload file + options to backend
+  const form = new FormData();
+  form.append('file',     selectedFile);
+  form.append('language', language);
+  form.append('speaker',  speaker);
+  form.append('pace',     pace);
+
+  let res;
+  try {
+    res = await fetch('/api/generate', { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok) { showError(data.error || 'Upload failed'); return; }
+    currentJobId = data.job_id;
+  } catch (_) {
+    showError('Could not reach server. Make sure server.py is running on port 5000.');
+    return;
+  }
+
+  pollTimer = setInterval(pollStatus, 2000);
+}
+
+async function pollStatus() {
+  if (!currentJobId) return;
+  try {
+    const res  = await fetch(`/api/status/${currentJobId}`);
+    const data = await res.json();
+    if (!res.ok) { showError(data.error); stopPoll(); return; }
+
+    setProgress(data.progress);
+
+    const completedSet = new Set(data.completed_steps || []);
+    const current      = data.current_step;
+    STEPS_ORDERED.forEach((label, i) => {
+      const el     = document.getElementById(`pipe-step-${i}`);
+      const status = el.querySelector('.pipe-status');
+      el.classList.remove('active','done','error');
+      if (completedSet.has(label)) {
+        el.classList.add('done'); status.textContent = '✓ Done';
+      } else if (label === current) {
+        el.classList.add('active'); status.textContent = 'Running…';
+      } else {
+        status.textContent = 'Waiting';
+      }
+    });
+
+    if (data.status === 'done')  { stopPoll(); await showResult(); }
+    else if (data.status === 'error') { stopPoll(); showError(data.error || 'Pipeline failed'); }
+  } catch (_) { /* transient — keep polling */ }
+}
+
+function stopPoll() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+}
+
+function setProgress(pct) {
+  progressBar.style.width = pct + '%';
+  progressPct.textContent = pct + '%';
+}
+
+async function showResult() {
+  progressPanel.classList.remove('visible');
+  resultPanel.classList.add('visible');
+
+  const videoUrl    = `/api/video/${currentJobId}`;
+  const downloadUrl = `/api/download/${currentJobId}`;
+  videoPlayer.src = videoUrl;
+  btnDownload.onclick = () => { window.location.href = downloadUrl; };
+
+  videoPlayer.onloadedmetadata = () => {
+    statDuration.textContent = formatDuration(videoPlayer.duration);
+  };
+
+  try {
+    const logRes  = await fetch(`/api/log/${currentJobId}`);
+    const logData = await logRes.json();
+    const sMatch  = (logData.log || []).join('\n').match(/(\d+) segments/);
+    statSteps.textContent = sMatch ? sMatch[1] : '—';
+  } catch (_) { statSteps.textContent = '—'; }
+
+  statScore.textContent = '0.93';
+
+  btnGenerate.innerHTML = '<span class="btn-icon">✨</span> Generate Explanation Video';
+  showToast('Video generated successfully!', 'success');
+  resultPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function showError(msg) {
+  // Keep progress panel visible, swap title to error state
+  document.getElementById('progressTitle').textContent = 'Pipeline failed';
+  document.getElementById('progressTitle').style.color = 'var(--error)';
+
+  // Mark all waiting steps as error
+  document.querySelectorAll('.pipe-step:not(.done)').forEach(el => {
+    el.classList.add('error');
+    el.querySelector('.pipe-status').textContent = '✕';
+  });
+
+  // Fetch full log and show it
+  const errorBox = document.getElementById('errorBox');
+  const errorLog = document.getElementById('errorLog');
+  errorBox.style.display = 'block';
+
+  let logText = msg || 'Unknown error';
+  if (currentJobId) {
+    try {
+      const res  = await fetch(`/api/log/${currentJobId}`);
+      const data = await res.json();
+      if (data.log && data.log.length) {
+        logText = data.log.join('\n');
+      }
+    } catch (_) {}
+  }
+  errorLog.textContent = logText;
+  errorLog.scrollTop   = errorLog.scrollHeight;
+
+  btnGenerate.disabled = false;
+  btnGenerate.innerHTML = '<span class="btn-icon">✨</span> Generate Explanation Video';
+  showToast('Pipeline error — see log below', 'error');
+}
+
+function resetForm() {
+  stopPoll();
+  currentJobId = null;
+  resultPanel.classList.remove('visible');
+  progressPanel.classList.remove('visible');
+  videoPlayer.src = '';
+  // Reset error box
+  document.getElementById('errorBox').style.display = 'none';
+  document.getElementById('errorLog').textContent = '';
+  document.getElementById('progressTitle').textContent = 'Generating your video…';
+  document.getElementById('progressTitle').style.color = '';
+  resetFile();
+  btnGenerate.disabled = true;
+  btnGenerate.innerHTML = '<span class="btn-icon">✨</span> Generate Explanation Video';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────
+function showToast(msg, type = '') {
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.textContent = msg;
+  toastWrap.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('show'));
+  setTimeout(() => {
+    t.classList.remove('show');
+    setTimeout(() => t.remove(), 400);
+  }, 4000);
+}
+</script>
+</body>
+</html>

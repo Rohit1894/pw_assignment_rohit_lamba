@@ -1,0 +1,11 @@
+[server]
+# Question images are small; keep uploads tight.
+maxUploadSize = 15
+headless = true
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "light"
+primaryColor = "#6C4CF1"

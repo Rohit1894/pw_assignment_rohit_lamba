@@ -475,10 +475,13 @@ def generate_annotations_multimodal(audio_path, image_path, output_path,
     reuse the cached result with no API call (saves quota, makes re-runs instant).
     """
     from google import genai
+    from env_utils import load_dotenv
+    load_dotenv()  # pick up keys from the project-root .env
 
     api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     if not api_key:
-        raise RuntimeError("No GEMINI_API_KEY / GOOGLE_API_KEY set for multimodal generation")
+        raise RuntimeError("No GEMINI_API_KEY / GOOGLE_API_KEY set for multimodal "
+                           "generation (add it to .env — see .env.example)")
 
     W, H = image_size
     prompt = _build_prompt(question_text, W, H, duration_hint)
